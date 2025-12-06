@@ -1,6 +1,7 @@
 # Emo AI Agent - Requirements
 # Core
-streamlit>=1.28.0
+streamlit>=1.49.0
+htbuilder>=0.9.0
 python-dotenv>=1.0.0
 
 # OpenAI-compatible client (for Groq)

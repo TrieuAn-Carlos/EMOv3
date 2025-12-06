@@ -13,11 +13,13 @@ from typing import Dict, List, Optional
 from dotenv import load_dotenv
 import google.generativeai as genai
 
+# Import from centralized config
+from config import GEMINI_API_KEY, GEMINI_MODEL
+
 # Load environment variables
 load_dotenv()
 
 # Configure Gemini for title generation
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
 
@@ -87,7 +89,7 @@ def generate_title(session_id: str, first_message: str) -> str:
     # Try to generate title with AI
     if GEMINI_API_KEY:
         try:
-            model = genai.GenerativeModel('gemini-2.0-flash')
+            model = genai.GenerativeModel(GEMINI_MODEL)
             prompt = f"""Generate a very short title (maximum 5 words) for a conversation that starts with this message. 
 Return ONLY the title, nothing else. No quotes, no explanation.
 
