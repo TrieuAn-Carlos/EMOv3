@@ -1,0 +1,37 @@
+{
+  "projects": [
+    {
+      "name": "intro to cs",
+      "added": "2025-12-03T18:28:40.780551",
+      "language": "en",
+      "mentions": 1
+    }
+  ],
+  "skills": [
+    {
+      "name": "python",
+      "added": "2025-12-03T18:28:40.780556",
+      "language": "en"
+    }
+  ],
+  "preferences": [],
+  "deadlines": [
+    {
+      "deadline": "next friday",
+      "added": "2025-12-03T18:28:40.780546",
+      "language": "en"
+    }
+  ],
+  "personal": [
+    {
+      "fact": "working on intro to cs project due next friday",
+      "added": "2025-12-03T18:28:40.780570",
+      "language": "en"
+    },
+    {
+      "fact": "learning react",
+      "added": "2025-12-03T18:28:40.780572",
+      "language": "en"
+    }
+  ]
+}

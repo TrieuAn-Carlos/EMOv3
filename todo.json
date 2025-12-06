@@ -1,0 +1,40 @@
+[
+  {
+    "id": "34e684a9-fc17-4db2-bf62-f9f8c2bfa90e",
+    "task": "Upcoming meeting on Dec 6, 2025, at 2 PM (GMT+7) via Google Meet to discuss project overview and resources.",
+    "status": "done",
+    "created_at": "2025-12-03T17:34:07.453653"
+  },
+  {
+    "id": "6a805704-9b2d-4ee2-9a03-8f554c8458d3",
+    "task": "Upcoming meeting: Project Overview on Friday, December 6, 2025, from 2:00 PM - 3:00 PM (GMT+7)",
+    "status": "pending",
+    "created_at": "2025-12-03T22:28:57.823773"
+  },
+  {
+    "id": "36c9f752-ab7e-4699-a318-05479776fd30",
+    "task": "Weekly Standup: Mobile App Development Team on Tuesday, December 9, 2025, from 10:00 AM - 10:30 AM (GMT+7)",
+    "status": "pending",
+    "created_at": "2025-12-03T22:36:32.856657"
+  },
+  {
+    "id": "88cb25d2-0737-4244-bbee-e06b524f7983",
+    "task": "Shower at 11:00 pm gmt + 7",
+    "status": "pending",
+    "created_at": "2025-12-03T22:50:59.010302"
+  },
+  {
+    "id": "47ddaa8b-f5c1-4a4c-8551-a8f3431b74ca",
+    "task": "Review matrix multiplication + practice problems (tomorrow at 10:00 AM GMT+7)",
+    "status": "pending",
+    "created_at": "2025-12-04T09:53:07.225210",
+    "deadline": "2025-12-05T10:00:00"
+  },
+  {
+    "id": "4952f8e9-593c-40b7-af9b-789243b68a59",
+    "task": "a task: Review for German B1 exam at 3 PM on Saturday",
+    "status": "done",
+    "created_at": "2025-12-04T11:03:29.693246",
+    "deadline": "2025-12-04T15:00:00"
+  }
+]
