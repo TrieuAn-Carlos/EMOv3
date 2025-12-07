@@ -111,8 +111,273 @@
     "messages": []
   },
   "8f0dc029-b975-4ae7-87c5-18fa643b9371": {
-    "title": "New Chat",
+    "title": "Hello",
     "created_at": "2025-12-06T17:52:54.887636",
+    "messages": [
+      {
+        "role": "user",
+        "content": "hello?"
+      },
+      {
+        "role": "assistant",
+        "content": "Hey there! 👋 Just a heads-up, it looks like your matrix multiplication review is overdue from yesterday. How can I help you today?"
+      }
+    ]
+  },
+  "bf1bc1c9-d453-4b2c-a7f5-1fd0fbd6097c": {
+    "title": "What's Interesting?",
+    "created_at": "2025-12-06T18:04:28.907579",
+    "messages": [
+      {
+        "role": "user",
+        "content": "this is interesitng"
+      },
+      {
+        "role": "assistant",
+        "content": "Hey there!\n\nGlad you find it interesting! What's caught your eye?\n\nJust a quick heads-up, you've got \"Review matrix multiplication + practice problems\" on your to-do list for tomorrow at 10:00 AM GMT+7. Just wanted to make sure it's on your radar!"
+      }
+    ]
+  },
+  "437e3d09-06ad-4191-bfe1-20355f2a6082": {
+    "title": "New Chat",
+    "created_at": "2025-12-06T18:05:58.692768",
+    "messages": []
+  },
+  "ac7eeca5-2cab-459e-8280-463b95d62ef5": {
+    "title": "My Jobs",
+    "created_at": "2025-12-06T18:13:02.502430",
+    "messages": [
+      {
+        "role": "user",
+        "content": "What are my pending tasks and todos?"
+      },
+      {
+        "role": "assistant",
+        "content": "Here are your pending tasks:\n\n1. Upcoming meeting: Project Overview on Friday, December 6, 2025, from 2:00 PM - 3:00 PM (GMT+7)\n2. Weekly Standup: Mobile App Development Team on Tuesday, December 9, 2025, from 10:00 AM - 10:30 AM (GMT+7)\n3. Shower at 11:00 pm gmt + 7\n4. Review matrix multiplication + practice problems (tomorrow at 10:00 AM GMT+7)\n5. meeting at 5pm"
+      },
+      {
+        "role": "user",
+        "content": "những công việc mà tui có là gì?"
+      },
+      {
+        "role": "assistant",
+        "content": "Đây là danh sách các công việc bạn có:\n\n1. Cuộc họp sắp tới: Tổng quan dự án vào Thứ Sáu, ngày 6 tháng 12 năm 2025, từ 2:00 PM - 3:00 PM (GMT+7)\n2. Họp báo cáo hàng tuần: Nhóm phát triển ứng dụng di động vào Thứ Ba, ngày 9 tháng 12 năm 2025, từ 10:00 AM - 10:30 AM (GMT+7)\n3. Tắm lúc 11:00 tối GMT+7\n4. Ôn tập phép nhân ma trận + bài tập thực hành (ngày mai lúc 10:00 AM GMT+7)\n5. Cuộc họp lúc 5 giờ chiều"
+      }
+    ]
+  },
+  "f6558b09-7d3c-4a4c-8b39-79d3f6b9a633": {
+    "title": "New Chat",
+    "created_at": "2025-12-06T18:13:35.492933",
+    "messages": []
+  },
+  "c5695884-e3f1-4089-b372-1230e01f88d7": {
+    "title": "New Chat",
+    "created_at": "2025-12-07T14:08:57.384894",
+    "messages": []
+  },
+  "423cdb6d-3efc-4342-b1fe-b56789fb9d33": {
+    "title": "New Chat",
+    "created_at": "2025-12-07T14:40:22.751295",
+    "messages": []
+  },
+  "a81e43c3-bfca-47d8-af0b-47db677c4872": {
+    "title": "New Chat",
+    "created_at": "2025-12-07T14:41:23.309908",
+    "messages": []
+  },
+  "0c29d3a4-0298-4005-9c10-675bfee1cea5": {
+    "title": "Create a quiz about Python ...",
+    "created_at": "2025-12-07T14:41:59.634813",
+    "messages": []
+  },
+  "41978ec6-8d54-42bc-987f-48915e74c6f2": {
+    "title": "Create a quiz about Python ...",
+    "created_at": "2025-12-07T14:42:32.744315",
+    "messages": []
+  },
+  "9c65367d-eaf0-49e8-b418-0f396dd0c522": {
+    "title": "What are my pending tasks a...",
+    "created_at": "2025-12-07T14:42:37.871272",
+    "messages": []
+  },
+  "3a01eec2-d541-4bb7-aab9-0b1cf971a7d7": {
+    "title": "New Chat",
+    "created_at": "2025-12-07T14:42:40.863427",
+    "messages": []
+  },
+  "e9e554f4-94a2-422d-bb33-e6abbfdb15e8": {
+    "title": "New Chat",
+    "created_at": "2025-12-07T14:47:28.128419",
+    "messages": []
+  },
+  "d1fb8714-3870-4613-ad68-44edcaf1a9c0": {
+    "title": "New Chat",
+    "created_at": "2025-12-07T14:48:26.762191",
+    "messages": [
+      {
+        "role": "user",
+        "content": "hi"
+      },
+      {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "Hi there! How can I help you today?",
+            "extras": {
+              "signature": "CoYCAXLI2nwvOY03PUSqJDUoeRipN7FF5D5XSJagIQGrXAY49kCi2/KpbfEDW0OdVxiUycfpfECdigtJsNyZgH2eqFD9ilWCovFTMWS7Feq8qeRxjjOUb4ylo38B2CyWBlvoerBs84rej+gCxaUvMmXOnRJL9nYa1xpKAsjqNk/oLNoWkEthlKGk3otwLgoyyCXWzzrTHfAUEzh0m4dySyeYBjavqLfySJv1GgZl24MaBF/L668l3+qDypddBh3xMLygRv1iBGWscsDssw4Y62UYccfiDNLEqTgNAJ6aAKqhzBebt6ANx6dJgg/GMCnirGYVD80nnnQx0A11rivTdqPfhYMBlCAeJQ=="
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "a6c432bb-0e28-482a-928f-d598f6c70881": {
+    "title": "Khả năng của bạn",
+    "created_at": "2025-12-07T14:49:10.144803",
+    "messages": [
+      {
+        "role": "user",
+        "content": "hi"
+      },
+      {
+        "role": "assistant",
+        "content": "Hi there! How can I help you today?"
+      },
+      {
+        "role": "user",
+        "content": "bạn là ai?"
+      },
+      {
+        "role": "assistant",
+        "content": "Tôi là Emo, một trợ lý AI cá nhân ấm áp và thông minh."
+      },
+      {
+        "role": "user",
+        "content": "bạn có thể làm gì cho mình?"
+      },
+      {
+        "role": "assistant",
+        "content": "Tôi có thể giúp bạn với khá nhiều thứ đó! Ví dụ, tôi có thể:\n\n1.  **Email**: Tìm kiếm và đọc email trong Gmail của bạn, thậm chí phân tích cả tệp đính kèm.\n2.  **Lịch**: Xem các sự kiện sắp tới, thêm sự kiện mới hoặc tìm kiếm lịch của bạn.\n3.  **Công việc**: Thêm, xem và hoàn thành các công việc cần làm, tôi cũng có thể nhận diện thời hạn nếu bạn có.\n4.  **Bộ nhớ**: Lưu trữ và truy xuất thông tin cá nhân mà bạn chia sẻ.\n5.  **Web**: Đọc nội dung trang web, lấy bản ghi YouTube hoặc xem tin tức.\n6.  **Kiểm tra kiến thức**: Tạo các câu đố tương tác về một chủ đề nào đó.\n\nBạn muốn tôi bắt đầu với việc gì không?"
+      }
+    ]
+  },
+  "d6256371-1c11-4067-8018-9d6621c29420": {
+    "title": "New Chat",
+    "created_at": "2025-12-07T14:49:44.626501",
+    "messages": []
+  },
+  "790601ca-ec6a-4b6c-a46d-29ce74659f9b": {
+    "title": "Hello",
+    "created_at": "2025-12-07T14:52:43.245298",
+    "messages": [
+      {
+        "role": "user",
+        "content": "bạn là ai?"
+      },
+      {
+        "role": "assistant",
+        "content": "Chào bạn! Tôi là Emo, một trợ lý AI cá nhân. Tôi có thể giúp bạn với email, lịch, công việc, ghi nhớ thông tin, đọc tin tức và trang web, tạo câu đố và nhiều thứ khác nữa. Rất vui được giúp đỡ!"
+      },
+      {
+        "role": "user",
+        "content": "hello?"
+      },
+      {
+        "role": "assistant",
+        "content": "Chào bạn! Có điều gì tôi có thể giúp được không?"
+      }
+    ]
+  },
+  "695ab6b3-ffc3-4f4c-ab49-3e969411fe36": {
+    "title": "New Chat",
+    "created_at": "2025-12-07T14:52:43.792505",
+    "messages": []
+  },
+  "5fd979b9-265a-4a37-9ad8-a68a6ff04fa8": {
+    "title": "New Chat",
+    "created_at": "2025-12-07T14:53:08.235093",
+    "messages": []
+  },
+  "3c2fe186-1cd2-46bd-bfa4-2bb36f5a2987": {
+    "title": "New Chat",
+    "created_at": "2025-12-07T14:55:19.491244",
+    "messages": []
+  },
+  "ba8aaa1e-4c75-4af0-b92d-acdf0a55b7ac": {
+    "title": "New Chat",
+    "created_at": "2025-12-07T14:55:21.930222",
+    "messages": []
+  },
+  "d00877a9-c023-4a3f-bc29-a03e1944ab55": {
+    "title": "Read My Email",
+    "created_at": "2025-12-07T14:57:22.128982",
+    "messages": [
+      {
+        "role": "user",
+        "content": "can you read my email?"
+      },
+      {
+        "role": "assistant",
+        "content": "I found 3 unread emails:\n\n1.  **Subject:** [A Smart Bear] Best-of: Scaling by “delegation” isn’t good enough\n    **From:** Jason Cohen\n2.  **Subject:** 🎄🎁ESL Advent Calendar!\n    **From:** Twinkl\n3.  **Subject:** Your Grab E-Receipt\n    **From:** Grab\n\nWould you like to read any of them in more detail?"
+      }
+    ]
+  },
+  "d18c983f-5560-4b2a-976a-d0c8b82403d3": {
+    "title": "Hello",
+    "created_at": "2025-12-07T14:59:37.354882",
+    "messages": [
+      {
+        "role": "user",
+        "content": "hello :>!"
+      },
+      {
+        "role": "assistant",
+        "content": "Chào bạn, Emo đây! Mình sẵn sàng hỗ trợ bạn mọi thứ luôn nè 😄 Bạn muốn tụi mình bắt đầu với việc gì đây? ✨"
+      }
+    ]
+  },
+  "14a5c879-a3a0-4809-95b0-efce7fb52809": {
+    "title": "New Chat",
+    "created_at": "2025-12-07T15:00:25.832536",
+    "messages": []
+  },
+  "725e23f7-29af-4d1b-a264-1e600cfd9f81": {
+    "title": "Today's Agenda",
+    "created_at": "2025-12-07T15:02:53.713059",
+    "messages": [
+      {
+        "role": "user",
+        "content": "whats on my agenda today?"
+      },
+      {
+        "role": "assistant",
+        "content": "Ố là la! Hôm nay bạn có 2 sự kiện nè:\n\n1.  **🍱 Lunch** vào 12:00 trưa ngày mai (Thứ Hai, 08/12)\n2.  **📚 Weekday Study** vào 14:00 chiều mai (Thứ Hai, 08/12)\n\nCó vẻ ngày mai bạn sẽ bận rộn đó nha! ✨"
+      }
+    ]
+  },
+  "8b303f12-a8b1-4fe4-818a-5332c5070fbe": {
+    "title": "Tomorrow's Tasks",
+    "created_at": "2025-12-07T15:03:31.952820",
+    "messages": [
+      {
+        "role": "user",
+        "content": "mai mình có những việc gì :<?"
+      },
+      {
+        "role": "assistant",
+        "content": "Ố là la, để Emo xem ngày mai bạn có gì nè! ✨\n\nTheo lịch của bạn thì mai, Thứ Hai ngày 08 tháng 12, bạn có 2 việc nè:\n\n1.  **🍱 Lunch** vào lúc 12:00 trưa.\n2.  **📚 Weekday Study** vào lúc 14:00.\n\nBạn có muốn Emo thêm hay tìm kiếm gì khác không? Kể Emo nghe nè! 😄"
+      }
+    ]
+  },
+  "a1e4912e-2d38-44b5-a535-063f03a4661f": {
+    "title": "New Chat",
+    "created_at": "2025-12-07T15:04:34.188436",
+    "messages": []
+  },
+  "5c76a9a5-3da7-4ec2-aa26-71cc51a7923a": {
+    "title": "New Chat",
+    "created_at": "2025-12-07T16:03:07.401452",
     "messages": []
   }
 }

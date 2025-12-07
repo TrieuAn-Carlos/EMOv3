@@ -18,13 +18,18 @@ import datetime
 import time
 import streamlit as st
 
-# EMO IMPORTS
-from chat_engine import chat_with_emo
+# EMO IMPORTS - Using new LangGraph agent
+from agent import chat_with_agent  # New ReAct agent
 from state import initialize_context, get_current_datetime
 from history import save_session, create_new_session, generate_title
 from tools import set_current_session_id
 from config import format_memories_for_context, query_memory
 from task_manager import get_smart_reminders
+from credentials_manager import (
+    get_all_accounts, remove_account, set_primary, is_connected
+)
+from gmail_tools import test_gmail_connection, reconnect_gmail, disconnect_gmail
+from calendar_tools import test_calendar_connection, disconnect_calendar
 
 st.set_page_config(page_title="Emo AI Assistant", page_icon="◯")
 
@@ -74,7 +79,10 @@ SUGGESTIONS = {
 
 def response_generator(text):
     """Yields words from the text to simulate streaming."""
-    for word in text.split(" "):
+    # Handle case where LangChain returns content as a list
+    if isinstance(text, list):
+        text = " ".join(str(item) for item in text if item)
+    for word in str(text).split(" "):
         yield word + " "
         time.sleep(0.02)
 
@@ -95,6 +103,78 @@ def show_disclaimer_dialog():
             Answers may be inaccurate. Do not use for critical advice.
             Emo uses your Gemini API key and accesses your defined tools (Gmail, etc).
         """)
+
+@st.dialog("Connections", width="large")
+def show_connections_dialog():
+    """Poke-style connections management dialog."""
+    
+    # Email Accounts Section
+    st.markdown("### 📧 Email Accounts")
+    
+    gmail_accounts = get_all_accounts('gmail')
+    
+    if gmail_accounts:
+        for acc in gmail_accounts:
+            col1, col2, col3 = st.columns([3, 1, 1])
+            with col1:
+                icon = "🌐" if acc.get('primary') else "⚡"
+                st.markdown(f"{icon} **{acc['email']}**")
+            with col2:
+                if acc.get('primary'):
+                    st.caption("Primary")
+                else:
+                    if st.button("Set Primary", key=f"primary_{acc['email']}", type="secondary"):
+                        set_primary('gmail', acc['email'])
+                        st.rerun()
+            with col3:
+                if st.button("✕", key=f"remove_gmail_{acc['email']}", type="secondary"):
+                    disconnect_gmail()
+                    remove_account('gmail', acc['email'])
+                    st.rerun()
+        st.divider()
+    else:
+        st.info("No email accounts connected yet.")
+    
+    if st.button("➕ Add Email Account", use_container_width=True):
+        with st.spinner("Connecting to Gmail..."):
+            result = reconnect_gmail()
+            if result is True:
+                st.success("✅ Gmail connected successfully!")
+                st.rerun()
+            else:
+                st.error(f"Failed to connect: {result}")
+    
+    st.markdown("---")
+    
+    # Integrations Section
+    st.markdown("### 🔗 Integrations")
+    
+    # Calendar Integration
+    calendar_connected = is_connected('calendar')
+    
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        status = "✅ Connected" if calendar_connected else "Not connected"
+        st.markdown(f"📅 **Google Calendar** — {status}")
+    with col2:
+        if calendar_connected:
+            if st.button("Disconnect", key="disconnect_calendar", type="secondary"):
+                disconnect_calendar()
+                st.rerun()
+        else:
+            if st.button("Connect", key="connect_calendar", type="primary"):
+                with st.spinner("Connecting to Calendar..."):
+                    try:
+                        from calendar_tools import authenticate_calendar
+                        authenticate_calendar()
+                        st.success("✅ Calendar connected!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Failed: {str(e)[:50]}")
+    
+    # Connection Status
+    st.markdown("---")
+    st.caption("💡 Click 'Add Email Account' or 'Connect' to authorize access via Google OAuth.")
 
 # -----------------------------------------------------------------------------
 # Draw the UI.
@@ -140,11 +220,19 @@ if not user_first_interaction and not has_message_history:
             key="selected_suggestion",
         )
 
-    st.button(
-        "&nbsp;:small[:gray[:material/balance: Legal disclaimer]]",
-        type="tertiary",
-        on_click=show_disclaimer_dialog,
-    )
+    col1, col2 = st.columns(2)
+    with col1:
+        st.button(
+            "&nbsp;:small[:gray[:material/link: Connections]]",
+            type="tertiary",
+            on_click=show_connections_dialog,
+        )
+    with col2:
+        st.button(
+            "&nbsp;:small[:gray[:material/balance: Legal disclaimer]]",
+            type="tertiary",
+            on_click=show_disclaimer_dialog,
+        )
 
     st.stop()
 
@@ -212,11 +300,9 @@ if user_message:
             memories = query_memory(user_message)
             memory_context = format_memories_for_context(memories)
             
-            # CALL EMO BACKEND
-            # We pass False for show_thinking first to get the raw result, 
-            # but we can also display valid thinking steps if we want.
-            # NOTE: chat_with_emo will append to st.session_state.messages since we aliased it!
-            result = chat_with_emo(
+            # CALL EMO BACKEND - Using LangGraph ReAct Agent
+            # The agent uses native Gemini function calling for tool selection
+            result = chat_with_agent(
                 user_message, 
                 memory_context, 
                 show_thinking=True, 
@@ -237,8 +323,9 @@ if user_message:
             # Stream the LLM response.
             response = st.write_stream(response_generator(response_text))
 
-            # Note: We do NOT append to st.session_state.messages here manually
-            # because chat_with_emo already did it via the aliased list.
+            # Add to message history (UI manages this, not the agent)
+            st.session_state.messages.append({"role": "user", "content": user_message})
+            st.session_state.messages.append({"role": "assistant", "content": response_text})
 
             # Save to backend history
             if st.session_state.current_session_id:
@@ -246,4 +333,4 @@ if user_message:
                 generate_title(st.session_state.current_session_id, user_message)
 
             # Other stuff.
-            send_telemetry(question=user_message, response=response)
+            send_telemetry(question=user_message, response=response_text)

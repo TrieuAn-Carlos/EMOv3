@@ -8,7 +8,6 @@ Persists tasks to a local JSON file.
 import os
 import json
 import uuid
-import re
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
@@ -39,96 +38,15 @@ class TaskManager:
         with open(self.filepath, 'w') as f:
             json.dump(self.tasks, f, indent=2)
     
-    def _parse_deadline(self, task_text: str) -> Optional[datetime]:
-        """
-        Extract deadline from task text. Language-agnostic - focuses on time patterns.
-        Supports: "11pm", "at 3:30 pm", "Dec 6, 2025 at 2 PM", "tomorrow 5pm", "11h30"
-        """
-        text_lower = task_text.lower()
-        now = datetime.now()
-        target_date = now.date()
-        
-        # Parse date from text
-        month_names = {
-            'jan': 1, 'january': 1, 'feb': 2, 'february': 2, 'mar': 3, 'march': 3,
-            'apr': 4, 'april': 4, 'may': 5, 'jun': 6, 'june': 6,
-            'jul': 7, 'july': 7, 'aug': 8, 'august': 8, 'sep': 9, 'september': 9,
-            'oct': 10, 'october': 10, 'nov': 11, 'november': 11, 'dec': 12, 'december': 12
-        }
-        
-        date_pattern = r'(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})(?:,?\s*(\d{4}))?'
-        date_match = re.search(date_pattern, text_lower)
-        if date_match:
-            month = month_names.get(date_match.group(1)[:3], now.month)
-            day = int(date_match.group(2))
-            year = int(date_match.group(3)) if date_match.group(3) else now.year
+    def add_task(self, task: str, deadline_iso: str = None) -> Dict:
+        """Add a new task with optional deadline (ISO format from LLM)."""
+        deadline = None
+        if deadline_iso:
             try:
-                from datetime import date
-                target_date = date(year, month, day)
-            except:
-                pass
+                deadline = datetime.fromisoformat(deadline_iso)
+            except ValueError:
+                pass  # Invalid format, ignore
         
-        # ISO date pattern
-        iso_date = re.search(r'(\d{4})-(\d{2})-(\d{2})', task_text)
-        if iso_date:
-            try:
-                from datetime import date
-                target_date = date(int(iso_date.group(1)), int(iso_date.group(2)), int(iso_date.group(3)))
-            except:
-                pass
-        
-        # Relative dates
-        if 'tomorrow' in text_lower or 'ngày mai' in text_lower:
-            target_date = (now + timedelta(days=1)).date()
-        
-        # Parse time
-        hour, minute = None, 0
-        time_patterns = [
-            r'(\d{1,2}):(\d{2})\s*(am|pm|a\.m\.|p\.m\.)?',
-            r'(?:at|by|@|lúc|vào)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.|giờ|h)?',
-            r'(\d{1,2})\s*(am|pm|a\.m\.|p\.m\.)',
-            r'(\d{1,2})h(\d{2})?',
-            r'from\s*(\d{1,2}):(\d{2})\s*(am|pm|a\.m\.|p\.m\.)?',
-        ]
-        
-        for pattern in time_patterns:
-            match = re.search(pattern, text_lower)
-            if match:
-                groups = match.groups()
-                hour = int(groups[0])
-                
-                if len(groups) > 1 and groups[1] and groups[1].isdigit():
-                    minute = int(groups[1])
-                
-                ampm = None
-                for g in groups:
-                    if g and isinstance(g, str) and g.lower().replace('.', '') in ['am', 'pm']:
-                        ampm = g.lower().replace('.', '')
-                        break
-                
-                if ampm == 'pm' and hour != 12:
-                    hour += 12
-                elif ampm == 'am' and hour == 12:
-                    hour = 0
-                elif ampm is None and hour <= 12 and hour >= 1:
-                    if hour < 7:
-                        hour += 12
-                break
-        
-        if hour is not None:
-            try:
-                deadline = datetime.combine(target_date, datetime.min.time().replace(hour=hour, minute=minute))
-                if deadline < now and not date_match and not iso_date:
-                    deadline += timedelta(days=1)
-                return deadline
-            except:
-                pass
-        
-        return None
-    
-    def add_task(self, task: str) -> Dict:
-        """Add a new task with optional deadline detection."""
-        deadline = self._parse_deadline(task)
         new_task = {
             'id': str(uuid.uuid4()),
             'task': task,
@@ -266,13 +184,18 @@ def get_smart_reminders() -> str:
 
 # Tool functions for Gemini
 
-def add_todo(task: str) -> str:
+def add_todo(task: str, deadline: str = None) -> str:
     """Add a new task to the to-do list."""
     manager = get_task_manager()
-    manager.add_task(task)
+    result = manager.add_task(task, deadline)
     pending_count = len(manager.get_pending_tasks())
     st.session_state.todo_changed = True
-    return f"✅ Added task: '{task}'\n📋 You now have {pending_count} pending task(s)."
+    
+    deadline_info = ""
+    if result.get('deadline'):
+        deadline_info = f"\n⏰ Deadline: {result['deadline']}"
+    
+    return f"✅ Added task: '{task}'{deadline_info}\n📋 You now have {pending_count} pending task(s)."
 
 
 def get_todos() -> str:

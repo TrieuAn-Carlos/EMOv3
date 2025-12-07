@@ -16,6 +16,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
 from parsers import parse_attachment
+from credentials_manager import store_account, get_primary_account
 
 # Gmail API scopes
 SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
@@ -27,7 +28,20 @@ def authenticate_gmail():
     """Authenticate with Gmail API using OAuth 2.0."""
     creds = None
     
-    if os.path.exists(TOKEN_FILE):
+    # Check credentials manager first
+    account = get_primary_account('gmail')
+    if account and account.get('token'):
+        try:
+            import json
+            token_data = account['token']
+            if isinstance(token_data, str):
+                token_data = json.loads(token_data)
+            creds = Credentials.from_authorized_user_info(token_data, SCOPES)
+        except Exception:
+            pass
+    
+    # Fall back to token file
+    if not creds and os.path.exists(TOKEN_FILE):
         creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
     
     if not creds or not creds.valid:
@@ -39,8 +53,19 @@ def authenticate_gmail():
             flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
             creds = flow.run_local_server(port=0)
         
+        # Save token to file (legacy)
         with open(TOKEN_FILE, 'w') as token:
             token.write(creds.to_json())
+        
+        # Save to credentials manager
+        try:
+            service = build('gmail', 'v1', credentials=creds)
+            profile = service.users().getProfile(userId='me').execute()
+            email = profile.get('emailAddress', 'unknown@gmail.com')
+            import json
+            store_account('gmail', email, json.loads(creds.to_json()))
+        except Exception:
+            pass
     
     return build('gmail', 'v1', credentials=creds)
 

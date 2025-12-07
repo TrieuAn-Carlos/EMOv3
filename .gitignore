@@ -4,6 +4,12 @@
 *.json.secret
 credentials.json
 token.json
+calendar_credentials.json
+calendar_token.json
+connected_accounts.json
+
+# Notebooks
+*.ipynb
 
 # Python
 __pycache__/
