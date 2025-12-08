@@ -7,6 +7,10 @@ token.json
 calendar_credentials.json
 calendar_token.json
 connected_accounts.json
+gmail_token.json
+**/data/*.json
+**/data/emo_memory/
+*.db
 
 # Notebooks
 *.ipynb

@@ -1,0 +1,16 @@
+[
+  {
+    "id": "1fd418c9-2f2d-4fee-bc61-dd14e01faf0d",
+    "task": "Buy groceries",
+    "status": "done",
+    "created_at": "2025-12-08T16:46:43.242544",
+    "deadline": "2025-12-09T10:00:00"
+  },
+  {
+    "id": "7a03804d-55a5-476f-af8e-9c15379ecad1",
+    "task": "Buy a gift for Mom",
+    "status": "pending",
+    "created_at": "2025-12-08T20:19:55.759314",
+    "deadline": "2025-12-25T00:00:00"
+  }
+]

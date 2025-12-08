@@ -379,5 +379,96 @@
     "title": "New Chat",
     "created_at": "2025-12-07T16:03:07.401452",
     "messages": []
+  },
+  "2e59b7bf-f10d-4f2c-9d15-2e2069e4dc21": {
+    "title": "New Chat",
+    "created_at": "2025-12-07T20:23:52.662543",
+    "messages": []
+  },
+  "b67fad19-9759-49ee-b141-b26a6bdbb27e": {
+    "title": "New Chat",
+    "created_at": "2025-12-07T20:27:24.813942",
+    "messages": []
+  },
+  "8edf17d5-019a-4de9-af31-4ffd506fa6a0": {
+    "title": "New Chat",
+    "created_at": "2025-12-07T20:27:30.909582",
+    "messages": []
+  },
+  "e6d31bf1-7b50-4ec1-a2e7-74743e8bb088": {
+    "title": "Check My Email",
+    "created_at": "2025-12-07T20:29:08.576783",
+    "messages": [
+      {
+        "role": "user",
+        "content": "hello"
+      },
+      {
+        "role": "assistant",
+        "content": "Chào bạn! Emo đã sẵn sàng phục vụ đây nè 😄✨ Có gì Emo giúp được bạn không? Kể Emo nghe nha!"
+      },
+      {
+        "role": "user",
+        "content": "bạn làm được gì :>"
+      },
+      {
+        "role": "assistant",
+        "content": "Ố là la, bạn hỏi đúng người rồi đó nha! Emo này siêu đa năng luôn á, có thể giúp bạn đủ thứ trên đời luôn nè 😄 Kể sơ sơ cho bạn nghe nha:\n\n1.  **Hòm thư Gmail**: Emo có thể tìm email, đọc thư, thậm chí là \"soi\" cả file đính kèm nữa đó. Cứ bảo Emo là \"tìm thư từ ai đó\" hay \"đọc email số 2\" là Emo lo hết!\n2.  **Lịch hẹn**: Bạn muốn biết lịch trình sắp tới hay thêm một cuộc hẹn mới? Emo xem lịch và thêm sự kiện cái vèo luôn.\n3.  **Việc cần làm (Tasks)**: Emo giúp bạn ghi lại những việc cần làm, xem danh sách công việc hay đánh dấu hoàn thành khi bạn xong việc.\n4.  **Trí nhớ siêu phàm**: Có thông tin cá nhân nào quan trọng muốn Emo nhớ hộ không? Emo sẽ lưu lại và nhắc bạn khi cần đó.\n5.  **Lướt web**: Emo có thể đọc nội dung từ bất kỳ trang web nào bạn đưa link, hoặc thậm chí là \"hóng\" tin tức nóng hổi nữa đó. Đặc biệt là còn lấy được cả phụ đề YouTube nữa chứ!\n6.  **Tạo quiz**: Bạn muốn kiểm tra kiến thức hay học hỏi gì mới? Emo sẽ tạo ngay một bộ câu đố siêu hay ho cho bạn luôn!\n\nNói chung là bạn cứ việc \"sai bảo\", Emo sẽ cố gắng hết sức để giúp bạn nha! Có gì cứ hỏi Emo liền hen! ✨"
+      },
+      {
+        "role": "user",
+        "content": "bạn check email gần đây của tui thử"
+      },
+      {
+        "role": "assistant",
+        "content": "Ối giời ơi, Emo xin lỗi bạn nhiều nha! Có vẻ như Emo đang gặp chút trục trặc kỹ thuật với cái \"hòm thư\" của bạn rồi. Emo không tìm thấy cái \"chìa khóa\" để mở email của bạn á (báo là 'credentials.json' not found).\n\nBạn thông cảm cho Emo nha, Emo không thể check email gần đây của bạn được rồi 😔 Có vẻ Emo cần được \"sửa sang\" lại chút xíu mới có thể giúp bạn phần này được á.\n\nBạn có muốn Emo giúp gì khác không nè? Emo vẫn sẵn sàng với các nhiệm vụ khác đó!"
+      }
+    ]
+  },
+  "84c4d7ba-c955-49f4-b8ec-87b5f31d310b": {
+    "title": "New Chat",
+    "created_at": "2025-12-07T20:31:11.752404",
+    "messages": []
+  },
+  "de2fe5e8-502a-4512-bea8-a397587c39cd": {
+    "title": "Initial Greeting",
+    "created_at": "2025-12-07T20:31:33.904251",
+    "messages": [
+      {
+        "role": "user",
+        "content": "hello"
+      },
+      {
+        "role": "assistant",
+        "content": "Chào bạn iu! Emo đã sẵn sàng ở đây, siêu vui vẻ và thông minh để giúp bạn nè ✨ Bạn cứ nói điều bạn cần nha, Emo lo hết! 😄"
+      }
+    ]
+  },
+  "a258fdc1-6f2a-46c7-867f-d22ee16de07f": {
+    "title": "thử viết latex xem",
+    "created_at": "2025-12-07T20:31:54.755330",
+    "messages": [
+      {
+        "role": "user",
+        "content": "prove me AM GM true"
+      },
+      {
+        "role": "assistant",
+        "content": "Ố là la, bạn hỏi khó Emo quá nè! Emo là trợ lý AI siêu vui vẻ, rành mấy vụ email, lịch hẹn, nhắc việc hay lướt web tìm tin tức, tạo quiz đồ thôi chứ mấy bài toán chứng minh AM-GM thì Emo chịu thua rồi, hông giúp bạn được vụ này á. 😅\n\nBạn có cần Emo giúp gì khác không nè? Ví dụ như tìm tin tức, đọc email hay tạo một cái quiz vui vui chẳng hạn? ✨"
+      },
+      {
+        "role": "user",
+        "content": "thử viết latex xem"
+      },
+      {
+        "role": "assistant",
+        "content": "I encountered an error: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current"
+      }
+    ]
+  },
+  "d4f12be2-536e-480a-84e1-8ff4468687e1": {
+    "title": "New Chat",
+    "created_at": "2025-12-08T21:31:22.013109",
+    "messages": []
   }
 }
