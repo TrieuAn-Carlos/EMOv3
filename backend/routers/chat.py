@@ -88,13 +88,15 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/stream")
-async def chat_stream(message: str, session_id: Optional[str] = None, db: Session = Depends(get_db)):
+async def chat_stream(message: str, session_id: Optional[str] = None, mode: Optional[str] = None, debug: bool = False, db: Session = Depends(get_db)):
     """
     Stream a chat response using Server-Sent Events (SSE).
     
     Query params:
         message: The user's message
         session_id: Optional session ID for context (auto-created if not provided)
+        mode: Optional mode ('study' for Socratic teaching)
+        debug: If true, include debug info in response
     
     Returns:
         SSE stream with JSON chunks
@@ -110,7 +112,7 @@ async def chat_stream(message: str, session_id: Optional[str] = None, db: Sessio
                 # Send session_id to frontend
                 yield f"data: {json.dumps({'type': 'session_id', 'session_id': actual_session_id}, ensure_ascii=False)}\n\n"
             
-            async for chunk in stream_chat_with_gemma(message, actual_session_id, db):
+            async for chunk in stream_chat_with_gemma(message, actual_session_id, db, mode, debug):
                 # Format as SSE
                 data = json.dumps(chunk, ensure_ascii=False)
                 yield f"data: {data}\n\n"
@@ -136,52 +138,21 @@ async def chat_stream(message: str, session_id: Optional[str] = None, db: Sessio
 async def generate_title(request: TitleRequest):
     """
     Generate a concise title for a chat session based on messages.
-    Uses Gemma 3 27B to create a 3-5 word summary.
+    Uses configured LLM via TitleGenerator.
     """
     try:
-        from langchain_google_genai import ChatGoogleGenerativeAI
-        from langchain_core.messages import HumanMessage
-        import os
+        # Use centralized TitleGenerator
+        title_gen = get_title_generator()
         
-        # Build conversation summary from messages
-        conversation_parts = []
-        for msg in request.messages[:6]:  # Limit to first 6 messages
-            role = msg.get("role", "user")
-            content = msg.get("content", "")[:200]  # Limit to 200 chars
-            conversation_parts.append(f"{role}: {content}")
-        
-        conversation = "\n".join(conversation_parts)
-        
-        # Create prompt for title generation
-        prompt = f"""Based on this conversation, generate a concise 3-5 word title.
-Be specific and descriptive. Use title case. NO quotes or punctuation.
-
-Conversation:
-{conversation}
-
-Title (3-5 words only):"""
-        
-        # Use Gemma 3 27B for title generation
-        gemini_api_key = os.getenv("GEMINI_API_KEY")
-        llm = ChatGoogleGenerativeAI(
-            model="gemma-3-27b-it",
-            api_key=gemini_api_key,
-            temperature=0.5,
-        )
-        
-        # Generate title
-        response = llm.invoke([HumanMessage(content=prompt)])
-        title = response.content.strip()
-        
-        # Clean up title (remove quotes, limit length)
-        title = title.replace('"', '').replace("'", "").strip()
-        if len(title) > 50:
-            title = title[:47] + "..."
+        # Convert request messages (dicts) to whatever TitleGenerator expects
+        # TitleGenerator expects list of dicts with role/content, which matches request structure
+        title = title_gen.generate_title(request.messages)
         
         return TitleResponse(title=title)
         
     except Exception as e:
         # Fallback to generic title on error
+        print(f"Generate title endpoint error: {e}")
         return TitleResponse(title="New Chat")
 
 

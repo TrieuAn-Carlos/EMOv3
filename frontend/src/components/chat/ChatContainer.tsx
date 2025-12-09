@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, ArrowUp, Loader2, ChevronDown, ChevronRight, Wrench, ClipboardList, Mail, Brain, Newspaper, MessageCircle } from "lucide-react";
+import { Send, ArrowUp, Loader2, ChevronDown, ChevronRight, Wrench, ClipboardList, Mail, Brain, Newspaper, MessageCircle, GraduationCap, Bug } from "lucide-react";
 import { Message } from "./Message";
+import { useAppStore } from "@/store/useAppStore";
 
 interface ChatMessage {
     id: string;
@@ -10,6 +11,7 @@ interface ChatMessage {
     content: string;
     tools?: string[];
     thinking?: string;
+    debugInfo?: string;
 }
 
 const SUGGESTIONS = [
@@ -25,11 +27,33 @@ interface ChatContainerProps {
     onSessionCreated?: (sessionId: string) => void;
 }
 
+interface StudyToggleButtonProps {
+    isStudyMode: boolean;
+    onClick: () => void;
+}
+
+function StudyToggleButton({ isStudyMode, onClick }: StudyToggleButtonProps) {
+    return (
+        <button
+            onClick={onClick}
+            className={`group flex items-center gap-2 px-4 h-10 rounded-full text-sm font-medium cursor-pointer select-none ${isStudyMode
+                ? "bg-blue-100 text-blue-700"
+                : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"
+                }`}
+        >
+            <GraduationCap className={`w-4 h-4 ${isStudyMode ? "text-blue-700" : "text-gray-500 group-hover:text-gray-700"}`} strokeWidth={2} />
+            Study
+        </button>
+    );
+}
+
 export function ChatContainer({ sessionId, onMessagesChange, onSessionCreated }: ChatContainerProps = {}) {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [expandedThinking, setExpandedThinking] = useState<string | null>(null);
+    const [isStudyMode, setIsStudyMode] = useState(false);
+    const { debugMode } = useAppStore();
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const onMessagesChangeRef = useRef(onMessagesChange);
@@ -137,13 +161,16 @@ export function ChatContainer({ sessionId, onMessagesChange, onSessionCreated }:
             // Use streaming endpoint with Server-Sent Events
             const encodedMessage = encodeURIComponent(userMessage.content);
             const sessionParam = sessionId ? `&session_id=${sessionId}` : '';
+            const studyParam = isStudyMode ? '&mode=study' : '';
+            const debugParam = debugMode ? '&debug=true' : '';
             const eventSource = new EventSource(
-                `http://localhost:8000/api/chat/stream?message=${encodedMessage}${sessionParam}`
+                `http://localhost:8000/api/chat/stream?message=${encodedMessage}${sessionParam}${studyParam}${debugParam}`
             );
 
             let accumulatedContent = "";
             let accumulatedTools: string[] = [];
             let accumulatedThinking = "";
+            let accumulatedDebugInfo = "";
             let messageCreated = false; // Track if message was added to state
             let newSessionId: string | null = null; // Track auto-created session
 
@@ -203,6 +230,9 @@ export function ChatContainer({ sessionId, onMessagesChange, onSessionCreated }:
                     if (chunk.thinking) {
                         accumulatedThinking = chunk.thinking;
                     }
+                    if (chunk.debug_info) {
+                        accumulatedDebugInfo = chunk.debug_info;
+                    }
 
                     // Create message on first chunk, then update it
                     if (!messageCreated && accumulatedContent) {
@@ -214,6 +244,7 @@ export function ChatContainer({ sessionId, onMessagesChange, onSessionCreated }:
                                 content: accumulatedContent,
                                 tools: accumulatedTools,
                                 thinking: accumulatedThinking,
+                                debugInfo: accumulatedDebugInfo,
                             }
                         ]);
                     } else if (messageCreated) {
@@ -226,6 +257,7 @@ export function ChatContainer({ sessionId, onMessagesChange, onSessionCreated }:
                                         content: accumulatedContent,
                                         tools: accumulatedTools,
                                         thinking: accumulatedThinking,
+                                        debugInfo: accumulatedDebugInfo,
                                     }
                                     : msg
                             )
@@ -314,7 +346,7 @@ export function ChatContainer({ sessionId, onMessagesChange, onSessionCreated }:
                         </h1>
 
                         {/* Claude-style input card */}
-                        <div className="w-full max-w-2xl bg-white rounded-2xl p-3 border border-[var(--border)] mb-6">
+                        <div className="w-full max-w-2xl bg-white rounded-2xl p-3 border border-[var(--border)] mb-6 transition-all focus-within:ring-1 focus-within:ring-[var(--primary-light)]">
                             <textarea
                                 ref={inputRef}
                                 value={input}
@@ -330,11 +362,15 @@ export function ChatContainer({ sessionId, onMessagesChange, onSessionCreated }:
                                 style={{ minHeight: "24px", maxHeight: "120px" }}
                                 disabled={isLoading}
                             />
-                            <div className="flex items-center justify-end mt-2 pt-2">
+                            <div className="flex items-center justify-between mt-2 pt-2">
+                                <StudyToggleButton
+                                    isStudyMode={isStudyMode}
+                                    onClick={() => setIsStudyMode(!isStudyMode)}
+                                />
                                 <button
                                     onClick={() => sendMessage(input)}
                                     disabled={!input.trim() || isLoading}
-                                    className="p-2.5 rounded-full bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all"
+                                    className="w-10 h-10 flex items-center justify-center rounded-full bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all"
                                     aria-label="Send message"
                                 >
                                     {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowUp className="w-5 h-5" strokeWidth={2.5} />}
@@ -402,6 +438,19 @@ export function ChatContainer({ sessionId, onMessagesChange, onSessionCreated }:
                                         )}
                                     </div>
                                 )}
+
+                                {/* Debug Info Panel */}
+                                {debugMode && message.role === "assistant" && message.debugInfo && (
+                                    <div className="mt-3 p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs animate-fade-in">
+                                        <div className="flex items-center gap-2 mb-2 text-amber-700">
+                                            <Bug className="w-4 h-4" />
+                                            <span className="font-semibold">Debug Info</span>
+                                        </div>
+                                        <pre className="whitespace-pre-wrap font-mono text-amber-900 max-h-96 overflow-y-auto">
+                                            {message.debugInfo}
+                                        </pre>
+                                    </div>
+                                )}
                             </div>
                         ))}
 
@@ -422,7 +471,7 @@ export function ChatContainer({ sessionId, onMessagesChange, onSessionCreated }:
             {/* Input area - same card style as home page */}
             {messages.length > 0 && (
                 <div className="px-4 pb-6 pt-4 max-w-3xl mx-auto w-full">
-                    <div className="w-full bg-white rounded-2xl p-3 border border-[var(--border)]">
+                    <div className="w-full bg-white rounded-2xl p-3 border border-[var(--border)] transition-all focus-within:ring-1 focus-within:ring-[var(--primary-light)]">
                         <textarea
                             ref={inputRef}
                             value={input}
@@ -438,11 +487,15 @@ export function ChatContainer({ sessionId, onMessagesChange, onSessionCreated }:
                             style={{ minHeight: "24px", maxHeight: "120px" }}
                             disabled={isLoading}
                         />
-                        <div className="flex items-center justify-end mt-2 pt-2">
+                        <div className="flex items-center justify-between mt-2 pt-2">
+                            <StudyToggleButton
+                                isStudyMode={isStudyMode}
+                                onClick={() => setIsStudyMode(!isStudyMode)}
+                            />
                             <button
                                 onClick={() => sendMessage(input)}
                                 disabled={!input.trim() || isLoading}
-                                className="p-2.5 rounded-full bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all"
+                                className="w-10 h-10 flex items-center justify-center rounded-full bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all"
                                 aria-label="Send message"
                             >
                                 {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowUp className="w-5 h-5" strokeWidth={2.5} />}

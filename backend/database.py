@@ -29,6 +29,8 @@ class ChatSession(Base):
     title_generated = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.now)
     message_count = Column(Integer, default=0)
+    # Study mode context: JSON with {"problem": str, "solution": str}
+    study_context = Column(Text, nullable=True)
     
     # Relationship với messages
     messages = relationship("Message", back_populates="session", cascade="all, delete-orphan", order_by="Message.timestamp")

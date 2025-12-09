@@ -2,6 +2,7 @@
 
 import { X } from "lucide-react";
 import { useTheme, ThemeMode } from "@/store/useThemeStore";
+import { useAppStore } from "@/store/useAppStore";
 import { useEffect } from "react";
 
 interface SettingsDialogProps {
@@ -11,6 +12,7 @@ interface SettingsDialogProps {
 
 export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
     const { mode, setMode } = useTheme();
+    const { debugMode, setDebugMode } = useAppStore();
 
     // Close on ESC key
     useEffect(() => {
@@ -89,6 +91,27 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                                 </label>
                             ))}
                         </div>
+                    </div>
+
+                    {/* Developer Section */}
+                    <div>
+                        <h3 className="text-sm font-semibold text-[var(--text)] mb-3">Developer</h3>
+                        <label className="flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all hover:bg-[var(--surface-hover)] group">
+                            <div className="flex flex-col">
+                                <span className="text-sm text-[var(--text-muted)] group-hover:text-[var(--text)] transition-colors">
+                                    Debug Mode
+                                </span>
+                                <span className="text-xs text-[var(--text-dim)]">
+                                    Show prompts, thinking, and internal data
+                                </span>
+                            </div>
+                            <input
+                                type="checkbox"
+                                checked={debugMode}
+                                onChange={(e) => setDebugMode(e.target.checked)}
+                                className="w-5 h-5 rounded text-[var(--primary)] cursor-pointer"
+                            />
+                        </label>
                     </div>
                 </div>
             </div>

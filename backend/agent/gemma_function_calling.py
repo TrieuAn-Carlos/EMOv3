@@ -9,19 +9,198 @@ import json
 import re
 import asyncio
 from typing import Optional, Dict, List, Any, AsyncGenerator
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage
 from sqlalchemy.orm import Session
 
 from core import (
-    GEMINI_API_KEY,
-    TEMPERATURE,
     EmoState,
     initialize_context,
     format_context_block,
 )
 from memory import query_memory, format_memories_for_context
 from agent.tools import get_all_tools
+
+
+# =============================================================================
+# SOCRATIC TEACHING (STUDY MODE) PROMPTS
+# =============================================================================
+
+# Simple system prompt matching Colab notebook exactly
+def build_socratic_system_prompt(problem: str, analysis: str) -> str:
+    """Build the system prompt for Socratic teaching - matches Colab notebook."""
+    return f"""You are a Socratic teacher, please guide me to solve the problem with heuristic questions based on the following information.
+
+[Problem]
+{problem}
+
+[Analysis]
+{analysis}"""
+
+
+def build_first_study_message(system_prompt: str, student_input: str) -> str:
+    """Build first message with system prompt included - matches Colab notebook."""
+    return f"{system_prompt}\n\n[Student]: {student_input}"
+
+
+def clean_response(response: str) -> str:
+    """Clean response by removing tags - matches Colab notebook exactly."""
+    # Remove tags exactly like Colab notebook
+    for tag in ["[Student]:", "[Teacher]:", "[Emo]:", "*"]:
+        if tag in response:
+            response = response.split(tag)[0].strip()
+    return response
+
+
+async def solve_problem_for_teaching(problem: str) -> Dict[str, str]:
+    """
+    Solve a problem using NORMAL Gemma 3 27B (via Gemini API).
+    This separates the "solving" from the "teaching" - letting the base model
+    analyze the problem, then Emo uses that analysis for Socratic teaching.
+    """
+    from core.llm import get_llm
+    
+    print("\n" + "="*70)
+    print("🧠🧠🧠 SOLVER: NORMAL GEMMA 3 27B (via Gemini API) 🧠🧠🧠")
+    print("="*70)
+    print(f"📥 INPUT PROBLEM:\n{problem}")
+    print("-"*70)
+    
+    # Always use Gemini (normal Gemma 3 27B) for solving - NOT the fine-tuned Emo
+    solver_llm = get_llm(provider="gemini")
+    
+    solver_prompt = f"""Giải bài toán sau một cách ngắn gọn.
+
+[Problem]
+{problem}
+
+Trả lời theo format:
+[Answer]
+(đáp án ngắn gọn)
+
+[Analysis]
+(các bước giải chính)
+"""
+    print(f"📤 SOLVER PROMPT:\n{solver_prompt}")
+    print("-"*70)
+    
+    try:
+        loop = asyncio.get_event_loop()
+        # Add 60s timeout to prevent infinite hang
+        response = await asyncio.wait_for(
+            loop.run_in_executor(
+                None,
+                lambda: solver_llm.invoke([HumanMessage(content=solver_prompt)])
+            ),
+            timeout=60.0
+        )
+        print("✅ Normal Gemma 3 27B solved the problem successfully")
+    except asyncio.TimeoutError:
+        print("❌ SOLVER TIMEOUT after 60s")
+        print("="*70 + "\n")
+        return {"answer": "Timeout", "analysis": f"Bài toán: {problem}"}
+    
+    # Parse the response to extract Answer and Analysis
+    response_text = response.content.strip()
+    print(f"📨 RAW SOLVER RESPONSE:\n{response_text}")
+    print("-"*70)
+    
+    # Extract answer
+    answer = ""
+    analysis = ""
+    
+    if "[Answer]" in response_text and "[Analysis]" in response_text:
+        parts = response_text.split("[Analysis]")
+        answer_part = parts[0].replace("[Answer]", "").strip()
+        analysis_part = parts[1].strip() if len(parts) > 1 else ""
+        answer = answer_part
+        analysis = analysis_part
+        print("✅ Parsed [Answer] and [Analysis] tags successfully")
+    else:
+        # Fallback: use entire response as analysis
+        analysis = response_text
+        # Try to extract a short answer from the end
+        lines = response_text.strip().split("\n")
+        answer = lines[-1] if lines else "Xem phân tích"
+        print("⚠️ No [Answer]/[Analysis] tags found, using fallback parsing")
+    
+    print(f"📊 PARSED ANSWER:\n{answer}")
+    print(f"📊 PARSED ANALYSIS:\n{analysis}")
+    print("="*70)
+    print("🎯 Analysis ready → Now feeding to Emo for Socratic teaching...")
+    print("="*70 + "\n")
+    
+    return {"answer": answer, "analysis": analysis}
+
+
+async def get_gemma_guidance(
+    problem: str, 
+    solution: str, 
+    student_message: str, 
+    conversation_history: str = ""
+) -> str:
+    """
+    Get real-time guidance from Gemma 3 27B for each student turn.
+    
+    This makes Gemma act as a "teaching advisor" - analyzing the student's
+    response and providing strategic thoughts for Emo to use.
+    """
+    from core.llm import get_llm
+    
+    print("\n" + "="*70)
+    print("🎯🎯🎯 GUIDE: GEMMA 3 27B TEACHING ADVISOR 🎯🎯🎯")
+    print("="*70)
+    print(f"📥 PROBLEM: {problem[:100]}...")
+    print(f"📥 STUDENT SAYS: {student_message}")
+    print("-"*70)
+    
+    guide_llm = get_llm(provider="gemini")
+    
+    guide_prompt = f"""Bạn là cố vấn giảng dạy. Dựa vào thông tin sau, hãy đưa ra hướng dẫn ngắn gọn cho giáo viên AI.
+
+[Bài toán]
+{problem}
+
+[Lời giải đúng]
+{solution}
+
+[Lịch sử hội thoại]
+{conversation_history if conversation_history else "(Đây là tin nhắn đầu tiên)"}
+
+[Học sinh vừa nói]
+{student_message}
+
+Hãy phân tích ngắn gọn:
+1. Học sinh đang ở đâu trong quá trình giải? (bắt đầu/giữa chừng/gần xong). Hãy describe vị trí của học sinh trong quá trình giải. Học sinh giải đến đâu rồi? Còn thiếu bước nào?
+2. Học sinh đúng hay sai? Sai ở điểm nào?
+3. Có cần hint không? Nếu có thì hint gì?
+4. Bước logic tiếp theo mà học sinh cần làm là gì?
+
+Trả lời ngắn gọn trong 3-5 dòng."""
+
+    print(f"📤 GUIDE PROMPT:\n{guide_prompt}")
+    print("-"*70)
+    
+    try:
+        loop = asyncio.get_event_loop()
+        response = await asyncio.wait_for(
+            loop.run_in_executor(
+                None,
+                lambda: guide_llm.invoke([HumanMessage(content=guide_prompt)])
+            ),
+            timeout=30.0
+        )
+        guidance = response.content.strip()
+        print(f"✅ GEMMA GUIDANCE:\n{guidance}")
+        print("="*70 + "\n")
+        return guidance
+    except asyncio.TimeoutError:
+        print("❌ GUIDE TIMEOUT after 30s")
+        print("="*70 + "\n")
+        return "Tiếp tục hướng dẫn học sinh với câu hỏi gợi mở."
+    except Exception as e:
+        print(f"❌ GUIDE ERROR: {e}")
+        print("="*70 + "\n")
+        return "Tiếp tục hướng dẫn học sinh với câu hỏi gợi mở."
 
 
 # =============================================================================
@@ -186,15 +365,9 @@ def get_gemma_llm():
     global _gemma_llm
 
     if _gemma_llm is None:
-        from core.config import MAX_OUTPUT_TOKENS
-
-        _gemma_llm = ChatGoogleGenerativeAI(
-            model="gemma-3-27b-it",
-            api_key=GEMINI_API_KEY,
-            temperature=TEMPERATURE,
-            max_tokens=MAX_OUTPUT_TOKENS,
-        )
-        print("✅ Gemma 3 27B initialized for function calling")
+        from core.llm import get_llm
+        _gemma_llm = get_llm()
+        print(f"✅ LLM initialized for function calling")
 
     return _gemma_llm
 
@@ -214,7 +387,8 @@ async def chat_with_gemma(
     user_message: str,
     session_id: Optional[str] = None,
     db: Optional[Session] = None,
-    max_iterations: int = 5
+    max_iterations: int = 5,
+    mode: Optional[str] = None
 ) -> Dict:
     """
     Chat with Gemma using manual function calling.
@@ -224,6 +398,7 @@ async def chat_with_gemma(
         session_id: Session ID for history
         db: Database session
         max_iterations: Maximum function calling iterations
+        mode: Optional mode ('study' for Socratic teaching)
 
     Returns:
         Dict with response, tools_used, thinking
@@ -251,14 +426,15 @@ async def chat_with_gemma(
                 from agent.agent import get_session_messages
                 history_messages = get_session_messages(session_id, db)
                 if history_messages:
-                    # Format history as conversation
+                    # Format history as conversation (no truncation for debug)
                     history_lines = []
                     for msg in history_messages[-10:]:  # Last 10 messages for context
                         role = "User" if msg["role"] == "user" else "Emo"
-                        content = msg["content"][:500]  # Truncate long messages
+                        content = msg["content"]  # Full content, no truncation
                         history_lines.append(f"{role}: {content}")
                     session_history_str = "\n".join(history_lines)
                     print(f"📚 Loaded {len(history_messages)} messages from session history")
+                    print(f"📚 History content:\n{session_history_str}")
             except Exception as e:
                 print(f"Session history load warning: {e}")
 
@@ -277,6 +453,209 @@ async def chat_with_gemma(
             except Exception as e:
                 print(f"Memory query warning: {e}")
 
+        # =====================================================================
+        # STUDY MODE: Socratic Teaching (matching Colab notebook exactly)
+        # Auto-detect: if session has study_context, use study mode automatically
+        # =====================================================================
+        from services.session_service import SessionService
+        service = SessionService(db) if db else None
+        
+        # Check if session has study_context (auto-detect study mode)
+        effective_mode = mode
+        study_context = None
+        if session_id and service and not mode:
+            study_context = service.get_study_context(session_id)
+            if study_context:
+                effective_mode = "study"
+                print(f"📚 Auto-detected study mode from existing session context")
+        
+        if effective_mode == "study":
+            print(f"\n{'='*60}")
+            print(f"📚📚📚 STUDY MODE ACTIVE 📚📚📚")
+            print(f"{'='*60}\n")
+            try:
+                # Get study_context if not already loaded
+                if study_context is None and session_id and service:
+                    study_context = service.get_study_context(session_id)
+                
+                if study_context is None:
+                    # First message - solve the problem using normal Gemma 3 27B
+                    print("📚 Study mode: Solving problem with normal Gemma 3 27B first...")
+                    solved = await solve_problem_for_teaching(user_message)
+                    print(f"📚 Study mode: Solution = {solved['analysis'][:200]}...")
+                    print(f"📚 Now Emo will use this analysis for Socratic teaching...")
+                    
+                    # Build system prompt (matching Colab exactly)
+                    system_prompt = build_socratic_system_prompt(user_message, solved["analysis"])
+                    
+                    # Save study context (just problem + analysis, no [Answer])
+                    if session_id:
+                        print(f"📚 Saving study context - problem: {user_message[:100]}...")
+                        print(f"📚 Saving study context - analysis: {solved['analysis']}")
+                        service.save_study_context(session_id, user_message, solved["analysis"])
+                    
+                    # For first response, we don't have student input yet
+                    # Just ask Emo to start guiding (like Colab "Session started")
+                    first_prompt = f"{system_prompt}\n\nPlease greet the student and ask the first guiding question to help them solve this problem."
+                    
+                    print("📚 Study mode: Generating first guiding question...")
+                    loop = asyncio.get_event_loop()
+                    response = await loop.run_in_executor(
+                        None,
+                        lambda: llm.invoke([HumanMessage(content=first_prompt)])
+                    )
+                    raw_response = response.content.strip()
+                    result["response"] = clean_response(raw_response)
+                    print(f"📚 Study mode first response (raw): {raw_response}")
+                    print(f"📚 Study mode first response (cleaned): {result['response']}")
+                    
+                else:
+                    # Follow-up message - continue Socratic dialogue WITH Gemma guidance
+                    print("📚 Study mode: Continuing Socratic dialogue...")
+                    
+                    # Get stored problem and analysis
+                    problem = study_context.get("problem", "")
+                    analysis = study_context.get("solution", "")
+                    
+                    # DEBUG: Show what we loaded
+                    print(f"📚 Study context loaded:")
+                    print(f"📚   Problem: {problem}")
+                    print(f"📚   Analysis/Solution: {analysis}")
+                    
+                    # Build conversation history string for Gemma guide
+                    conv_history_str = ""
+                    if session_id and db:
+                        try:
+                            from agent.agent import get_session_messages
+                            history = get_session_messages(session_id, db)
+                            history_lines = []
+                            for msg in history[-6:]:  # Last 6 messages for context
+                                role = "Học sinh" if msg["role"] == "user" else "Emo"
+                                history_lines.append(f"{role}: {msg['content']}")
+                            conv_history_str = "\n".join(history_lines)
+                        except Exception as e:
+                            print(f"⚠️ History load for guide: {e}")
+                    
+                    # 🎯 GET REAL-TIME GUIDANCE FROM GEMMA 3 27B
+                    guidance = await get_gemma_guidance(
+                        problem=problem,
+                        solution=analysis,
+                        student_message=user_message,
+                        conversation_history=conv_history_str
+                    )
+                    
+                    # Build enhanced system prompt WITH Gemma's guidance
+                    system_prompt = f"""You are a Socratic teacher, please guide me to solve the problem with heuristic questions based on the following information.
+
+[Problem]
+{problem}
+
+[Analysis]
+{analysis}
+
+[Real-time Teaching Guidance from Advisor]
+{guidance}
+
+Use the guidance above to craft your response. Ask guiding questions, don't give away the answer directly."""
+                    
+                    print(f"📚 Enhanced system prompt with guidance:\n{system_prompt}")
+                    
+                    # Build messages list
+                    messages = []
+                    
+                    # Load session history
+                    if session_id and db:
+                        try:
+                            from agent.agent import get_session_messages
+                            history = get_session_messages(session_id, db)
+                            
+                            print(f"📚 Study mode: Loading {len(history)} messages from history")
+                            for i, msg in enumerate(history):
+                                print(f"📚 History[{i}]: role={msg['role']}, content={msg['content'][:50]}...")
+                            
+                            first_student_seen = False
+                            for msg in history:
+                                if msg["role"] == "user" and not first_student_seen:
+                                    messages.append({
+                                        "role": "user",
+                                        "content": build_first_study_message(system_prompt, msg["content"])
+                                    })
+                                    first_student_seen = True
+                                else:
+                                    messages.append({
+                                        "role": "user" if msg["role"] == "user" else "model",
+                                        "content": msg["content"]
+                                    })
+                        except Exception as e:
+                            print(f"⚠️ Session history error: {e}")
+                            import traceback
+                            print(traceback.format_exc())
+                    
+                    # Add current user message
+                    if len(messages) == 0:
+                        messages.append({
+                            "role": "user",
+                            "content": build_first_study_message(system_prompt, user_message)
+                        })
+                    else:
+                        messages.append({
+                            "role": "user",
+                            "content": user_message
+                        })
+                    
+                    # Build prompt for Emo
+                    prompt_parts = []
+                    for msg in messages:
+                        role_label = "[Student]" if msg["role"] == "user" else "[Emo]"
+                        if msg == messages[0] and msg["role"] == "user":
+                            prompt_parts.append(msg["content"])
+                        else:
+                            prompt_parts.append(f"{role_label}: {msg['content']}")
+                    
+                    full_prompt = "\n\n".join(prompt_parts)
+                    
+                    print("\n" + "="*70)
+                    print("🤖🤖🤖 EMO: GENERATING SOCRATIC RESPONSE 🤖🤖🤖")
+                    print("="*70)
+                    print(f"📤 FULL PROMPT TO EMO:\n{full_prompt[:500]}...")
+                    print("-"*70)
+                    
+                    loop = asyncio.get_event_loop()
+                    response = await loop.run_in_executor(
+                        None,
+                        lambda: llm.invoke([HumanMessage(content=full_prompt)])
+                    )
+                    raw_response = response.content.strip()
+                    result["response"] = clean_response(raw_response)
+                    result["prompt"] = full_prompt
+                    result["guidance"] = guidance
+                    
+                    print(f"✅ EMO RESPONSE (raw): {raw_response}")
+                    print(f"✅ EMO RESPONSE (cleaned): {result['response']}")
+                    print("="*70 + "\n")
+                
+                result["thinking"] = "Study mode: Socratic teaching"
+                
+                # Save to database
+                if session_id and db and result["response"]:
+                    from agent.agent import save_session_message
+                    save_session_message(session_id, "user", user_message, db)
+                    save_session_message(session_id, "assistant", result["response"], db)
+                    service.auto_generate_title_if_needed(session_id)
+                
+                return result
+            except Exception as e:
+                print(f"Study mode error: {e}")
+                import traceback
+                print(traceback.format_exc())
+                result["error"] = str(e)
+                result["response"] = "❌ Có lỗi trong chế độ học tập. Vui lòng thử lại."
+                return result
+
+
+        # =====================================================================
+        # NORMAL MODE: Function calling
+        # =====================================================================
         # Build initial prompt with session history
         prompt = build_gemma_prompt(user_message, _gemma_context_state, memory_context, session_history_str)
 
@@ -293,13 +672,13 @@ async def chat_with_gemma(
 
             print(f"\n{'='*60}")
             print(f"Iteration {iteration}")
-            print(f"Response: {response_text[:300]}...")
+            print(f"Response: {response_text}")
             print(f"{'='*60}\n")
 
             conversation_history.append({
                 "iteration": iteration,
-                "prompt": prompt[:200] + "...",
-                "response": response_text[:500]
+                "prompt": prompt,
+                "response": response_text
             })
 
             # Check for function call
@@ -315,7 +694,7 @@ async def chat_with_gemma(
                 result["thinking"] += f"[Iteration {iteration}] Called: {func_name}\n"
 
                 func_result = execute_function(function_call, tools_map)
-                print(f"📦 Function result (first 200 chars): {str(func_result)[:200]}...")
+                print(f"📦 Function result: {func_result}")
 
                 # Build next prompt with function result - NO MORE FUNCTION CALLING
                 prompt = f"""The function has been executed and returned this result:
@@ -373,9 +752,11 @@ async def stream_chat_with_gemma(
     user_message: str,
     session_id: Optional[str] = None,
     db: Optional[Session] = None,
+    mode: Optional[str] = None,
+    debug: bool = False
 ) -> AsyncGenerator[dict, None]:
     """Stream chat response from Gemma."""
-    result = await chat_with_gemma(user_message, session_id=session_id, db=db)
+    result = await chat_with_gemma(user_message, session_id=session_id, db=db, mode=mode)
 
     # Stream tools
     for tool in result.get("tools_used", []):
@@ -388,4 +769,20 @@ async def stream_chat_with_gemma(
         yield {"type": "text", "content": response[i:i+chunk_size]}
         await asyncio.sleep(0.02)
 
-    yield {"type": "done", "full_response": response}
+    # Build debug info if requested
+    debug_info = None
+    if debug:
+        debug_parts = []
+        if result.get("thinking"):
+            debug_parts.append(f"=== THINKING ===\n{result['thinking']}")
+        if result.get("tools_used"):
+            debug_parts.append(f"=== TOOLS USED ===\n{', '.join(result['tools_used'])}")
+        if result.get("prompt"):
+            debug_parts.append(f"=== PROMPT ===\n{result['prompt']}")
+        debug_info = "\n\n".join(debug_parts) if debug_parts else "No debug data available"
+
+    done_chunk = {"type": "done", "full_response": response}
+    if debug_info:
+        done_chunk["debug_info"] = debug_info
+    
+    yield done_chunk

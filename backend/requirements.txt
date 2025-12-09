@@ -7,8 +7,9 @@ python-dotenv>=1.0.0
 sqlalchemy>=2.0.0
 
 
-# OpenAI-compatible client (for Groq)
+# OpenAI-compatible client (for LitGPT / Local LLMs)
 openai>=1.0.0
+langchain-openai>=0.1.0
 
 # Google APIs (Gmail)
 google-auth-oauthlib>=1.0.0

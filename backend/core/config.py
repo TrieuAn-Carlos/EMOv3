@@ -17,6 +17,15 @@ load_dotenv()
 # Gemini API - Gemma 3 27B with manual function calling
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMMA_27B_MODEL = "gemma-3-27b-it"  # Gemma 3 27B with manual function calling
+
+# LitGPT / Lightning Studio
+LITGPT_API_KEY = os.getenv("LITGPT_API_KEY")
+LITGPT_API_BASE = os.getenv("LITGPT_API_BASE", "https://your-litgpt-instance.lightning.ai/v1")
+LITGPT_MODEL = os.getenv("LITGPT_MODEL", "iJoshNh/EmoN3")
+
+# LLM Provider Selection: "gemini" or "litgpt"
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini")
+
 TEMPERATURE = 0.3  # Lower for faster, more focused responses
 
 # Generation settings (OPTIMIZED for speed)

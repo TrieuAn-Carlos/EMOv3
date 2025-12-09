@@ -13,9 +13,11 @@ interface AppStore {
     sessions: ChatSession[];
     isSidebarExpanded: boolean;
     isRecentsExpanded: boolean;
+    debugMode: boolean;
     setSessions: (sessions: ChatSession[]) => void;
     setSidebarExpanded: (expanded: boolean) => void;
     setRecentsExpanded: (expanded: boolean) => void;
+    setDebugMode: (enabled: boolean) => void;
     loadSessions: () => Promise<void>;
     deleteSession: (id: string) => Promise<boolean>;
 }
@@ -24,9 +26,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
     sessions: [],
     isSidebarExpanded: true,
     isRecentsExpanded: true,
+    debugMode: false,
     setSessions: (sessions) => set({ sessions }),
     setSidebarExpanded: (expanded) => set({ isSidebarExpanded: expanded }),
     setRecentsExpanded: (expanded) => set({ isRecentsExpanded: expanded }),
+    setDebugMode: (enabled) => set({ debugMode: enabled }),
 
     loadSessions: async () => {
         try {

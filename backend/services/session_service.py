@@ -8,6 +8,7 @@ from database import ChatSession, Message
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime
 import uuid
+import json
 
 # Constants
 MAX_MESSAGES_PER_SESSION = 30
@@ -289,3 +290,41 @@ class SessionService:
         except Exception as e:
             print(f"⚠️ Auto title generation failed: {e}")
             return None
+
+    def get_study_context(self, session_id: str) -> Optional[Dict]:
+        """
+        Get study context for a session (Socratic teaching mode).
+        
+        Returns:
+            Dict with {"problem": str, "solution": str} or None
+        """
+        session = self.get_session(session_id, include_messages=False)
+        if not session or not session.study_context:
+            return None
+        try:
+            return json.loads(session.study_context)
+        except json.JSONDecodeError:
+            return None
+
+    def save_study_context(self, session_id: str, problem: str, solution: str) -> bool:
+        """
+        Save study context for Socratic teaching mode.
+        
+        Args:
+            session_id: Session ID
+            problem: Original problem text
+            solution: Solved analysis
+            
+        Returns:
+            True if saved successfully
+        """
+        session = self.get_session(session_id, include_messages=False)
+        if not session:
+            return False
+        
+        session.study_context = json.dumps({
+            "problem": problem,
+            "solution": solution
+        }, ensure_ascii=False)
+        self.db.commit()
+        return True
