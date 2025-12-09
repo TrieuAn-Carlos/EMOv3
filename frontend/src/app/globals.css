@@ -1,0 +1,531 @@
+@import url('https://fonts.googleapis.com/css2?family=Google+Sans:wght@300;400;500;700&display=swap');
+@import "tailwindcss";
+
+/* ============================================
+   THEME SYSTEM - Light & Dark Mode
+   ============================================ */
+
+/* Dark Mode (Default) */
+[data-theme="dark"] {
+    /* Base colors */
+    --background: #09090b;
+    --surface: #18181b;
+    --surface-hover: #27272a;
+    --border: #27272a;
+    --border-light: #3f3f46;
+
+    /* Text */
+    --text: #fafafa;
+    --text-muted: #a1a1aa;
+    --text-dim: #71717a;
+
+    /* Accent */
+    --primary: #7c3aed;
+    --primary-hover: #6d28d9;
+    --primary-light: #a78bfa;
+    --accent: #06b6d4;
+    --accent-hover: #0891b2;
+
+    /* Glass effects */
+    --glass-bg: rgba(24, 24, 27, 0.6);
+    --glass-border: rgba(63, 63, 70, 0.5);
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+    --shadow-glow: 0 0 20px rgba(124, 58, 237, 0.3);
+}
+
+/* Light Mode - Calm, warm aesthetic */
+[data-theme="light"] {
+    /* Base colors - Warm cream/beige */
+    --background: #F5F1EB;
+    --surface: #FAF8F5;
+    --surface-hover: #EDE8E0;
+    --border: #E0D9CF;
+    --border-light: #D4CCC0;
+
+    /* Text - Warm, muted tones */
+    --text: #2D2A26;
+    --text-muted: #5C564E;
+    --text-dim: #8A847A;
+
+    /* Accent - Muted, earthy tones */
+    --primary: #6B8F71;
+    --primary-hover: #5A7D60;
+    --primary-light: #94B399;
+    --accent: #B8926A;
+    --accent-hover: #A6815C;
+
+    /* Glass effects - Warm tint */
+    --glass-bg: rgba(250, 248, 245, 0.92);
+    --glass-border: rgba(224, 217, 207, 0.8);
+
+    /* Shadows - Warm, subtle */
+    --shadow-sm: 0 1px 2px rgba(45, 42, 38, 0.04);
+    --shadow-md: 0 4px 6px rgba(45, 42, 38, 0.06);
+    --shadow-lg: 0 10px 15px rgba(45, 42, 38, 0.08);
+    --shadow-glow: 0 0 20px rgba(107, 143, 113, 0.12);
+}
+
+/* Typography */
+:root {
+    --font-heading: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-body: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* ============================================
+   BASE STYLES
+   ============================================ */
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    /* Smooth theme transitions */
+    transition: background-color 200ms ease, color 200ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html {
+        transition: none;
+    }
+}
+
+body {
+    background: var(--background);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 17px;
+    min-height: 100vh;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Headings use Poppins */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: var(--font-heading);
+}
+
+/* ============================================
+   COMPONENT STYLES
+   ============================================ */
+
+/* Glass/Surface card */
+.surface {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    transition: background 150ms ease, border-color 150ms ease;
+}
+
+.surface-hover:hover {
+    background: var(--surface-hover);
+}
+
+/* Glass morphism effect */
+.glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+}
+
+/* Floating card with shadow */
+.card-floating {
+    box-shadow: var(--shadow-md);
+    transition: box-shadow 200ms ease, transform 200ms ease;
+}
+
+.card-floating:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .card-floating:hover {
+        transform: none;
+    }
+}
+
+/* Input styling */
+input,
+textarea {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+input:focus,
+textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: var(--text-dim);
+}
+
+/* Borderless input - for inputs inside cards */
+.input-borderless,
+.input-borderless:focus {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+
+/* Button base */
+.btn-primary {
+    background: var(--primary);
+    color: white;
+    transition: background 150ms ease, transform 150ms ease;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: var(--primary-hover);
+}
+
+.btn-primary:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+.btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ============================================
+   SCROLLBAR
+   ============================================ */
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+    transition: background 150ms ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--border-light);
+}
+
+/* Sidebar scrollbar - auto-hide */
+.sidebar-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+}
+
+.sidebar-scroll:hover {
+    scrollbar-color: var(--border) transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 3px;
+}
+
+.sidebar-scroll:hover::-webkit-scrollbar-thumb {
+    background: var(--border);
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--border-light);
+}
+
+/* Chat history collapse animation */
+.chat-history-content {
+    overflow: hidden;
+    transition: opacity 150ms ease, max-height 150ms ease;
+}
+
+.chat-history-content.collapsed {
+    opacity: 0;
+    max-height: 0;
+    pointer-events: none;
+}
+
+.chat-history-content.expanded {
+    opacity: 1;
+    max-height: 100vh;
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 0.4;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.3s ease-out forwards;
+}
+
+.animate-slide-in {
+    animation: slideIn 0.3s ease-out forwards;
+}
+
+.animate-pulse {
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .animate-fade-in,
+    .animate-slide-in,
+    .animate-pulse {
+        animation: none;
+    }
+}
+
+/* ============================================
+   MODAL & BACKDROP
+   ============================================ */
+
+.backdrop {
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+}
+
+[data-theme="light"] .backdrop {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+/* ============================================
+   EMAIL CARD STYLES
+   ============================================ */
+
+/* Email list container */
+.email-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Email card - Increased border radius */
+.email-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    /* Increased from 12px */
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: all 200ms ease;
+}
+
+.email-card:hover {
+    background: var(--surface-hover);
+    border-color: var(--primary);
+    box-shadow: var(--shadow-md);
+}
+
+/* Email avatar - More rounded */
+.email-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    /* Increased from 8px */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+/* Avatar colors */
+.email-avatar--purple {
+    background: rgba(124, 58, 237, 0.15);
+    color: #7c3aed;
+}
+
+.email-avatar--blue {
+    background: rgba(59, 130, 246, 0.15);
+    color: #3b82f6;
+}
+
+.email-avatar--cyan {
+    background: rgba(6, 182, 212, 0.15);
+    color: #06b6d4;
+}
+
+.email-avatar--green {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+}
+
+.email-avatar--orange {
+    background: rgba(249, 115, 22, 0.15);
+    color: #f97316;
+}
+
+.email-avatar--pink {
+    background: rgba(236, 72, 153, 0.15);
+    color: #ec4899;
+}
+
+/* Email content card */
+.email-content-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    /* Increased from 16px */
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+.email-content-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+}
+
+.email-content-body {
+    padding: 20px;
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text);
+}
+
+/* Attachment badge */
+.attachment-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 8px;
+    /* Increased from 6px */
+    background: var(--surface-hover);
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+/* Email date */
+.email-date {
+    font-size: 12px;
+    color: var(--text-dim);
+    white-space: nowrap;
+}
+
+/* Email index badge */
+.email-index {
+    width: 24px;
+    height: 24px;
+    border-radius: 8px;
+    /* Increased from 6px */
+    background: var(--primary);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+/* ============================================
+   COPILOT-STYLE UI
+   ============================================ */
+
+/* Prominent input card */
+.copilot-input-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 16px 20px;
+    box-shadow: var(--shadow-md);
+    transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+
+.copilot-input-card:focus-within {
+    border-color: var(--primary);
+    box-shadow: var(--shadow-lg), 0 0 0 3px rgba(107, 143, 113, 0.1);
+}
+
+/* Suggestion chip */
+.copilot-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    border-radius: 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 150ms ease;
+}
+
+.copilot-chip:hover {
+    background: var(--surface-hover);
+    border-color: var(--border-light);
+    color: var(--text);
+}
