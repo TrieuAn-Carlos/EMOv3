@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { ChatContainer } from "@/components/chat";
 import { ConnectionsDialog } from "@/components/ConnectionsDialog";
 import { SettingsDialog } from "@/components/SettingsDialog";
@@ -14,11 +15,12 @@ interface ChatSession {
   id: string;
   title: string;
   created_at: string;
-  messageCount: number;
-  titleGenerated: boolean;  // Track if title was auto-generated
+  message_count: number;
+
 }
 
 export default function Home() {
+  const router = useRouter();
   const [isConnectionsOpen, setIsConnectionsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
@@ -29,107 +31,72 @@ export default function Home() {
   // Initialize theme
   useTheme();
 
-  // Load sessions from localStorage
+  // Load sessions from backend
   useEffect(() => {
-    const saved = localStorage.getItem("emo_sessions");
-    if (saved) {
-      try {
-        setSessions(JSON.parse(saved));
-      } catch { }
-    }
+    loadSessions();
   }, []);
 
-  // Save sessions to localStorage
-  useEffect(() => {
-    if (sessions.length > 0) {
-      localStorage.setItem("emo_sessions", JSON.stringify(sessions));
+  const loadSessions = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/api/chat/sessions');
+      if (response.ok) {
+        const data = await response.json();
+        setSessions(data.sessions || []);
+      }
+    } catch (error) {
+      console.error('Failed to load sessions:', error);
     }
-  }, [sessions]);
+  };
 
-  const handleNewChat = () => {
-    const newSession: ChatSession = {
-      id: Date.now().toString(),
-      title: "New Chat",
-      created_at: new Date().toISOString(),
-      messageCount: 0,
-      titleGenerated: false,  // New sessions haven't been titled yet
-    };
-    setSessions([newSession, ...sessions]);
-    setCurrentSessionId(newSession.id);
-    setRefreshKey(prev => prev + 1);
+  const handleNewChat = async () => {
+    try {
+      // Simply switch to null session - backend will auto-create
+      setCurrentSessionId(null);
+      setRefreshKey(prev => prev + 1);
+
+      // Reload sessions after a short delay to pick up auto-created session
+      setTimeout(() => {
+        loadSessions();
+      }, 1000);
+    } catch (error) {
+      console.error('Failed to create session:', error);
+    }
   };
 
   const handleRestart = () => {
     setRefreshKey(prev => prev + 1);
   };
 
-  const generateTitle = async (sessionId: string, messages: any[]) => {
-    // Don't generate if already generated or too few messages
-    const session = sessions.find(s => s.id === sessionId);
-    if (!session || session.titleGenerated || messages.length < 3) {
-      return;
-    }
-
-    try {
-      const response = await fetch('http://localhost:8000/api/chat/generate-title', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: messages.slice(0, 6).map(m => ({
-            role: m.role,
-            content: m.content
-          }))
-        })
-      });
-
-      if (response.ok) {
-        const { title } = await response.json();
-
-        // Update session title
-        setSessions(prev => prev.map(s =>
-          s.id === sessionId
-            ? { ...s, title, titleGenerated: true }
-            : s
-        ));
-      }
-    } catch (error) {
-      console.error('Failed to generate title:', error);
-    }
-  };
-
-  const handleMessagesChange = (sessionId: string, messages: any[]) => {
-    // Update message count
-    setSessions(prev => prev.map(s =>
-      s.id === sessionId
-        ? { ...s, messageCount: messages.length }
-        : s
-    ));
-
-    // Auto-generate title after 5 messages
-    if (messages.length === 5) {
-      generateTitle(sessionId, messages);
-    }
+  const handleMessagesChange = async (sessionId: string, messages: any[]) => {
+    // Reload sessions to get updated message count
+    await loadSessions();
   };
 
   const handleSessionSwitch = (newSessionId: string) => {
-    // Generate title for current session if needed (3+ messages, not generated yet)
-    if (currentSessionId) {
-      const currentSession = sessions.find(s => s.id === currentSessionId);
-      if (currentSession && currentSession.messageCount >= 3 && !currentSession.titleGenerated) {
-        // Trigger title generation for current session before switching
-        // We'll need to get messages from ChatContainer somehow
-        // For now, we'll rely on the 5-message trigger
-      }
-    }
-
-    setCurrentSessionId(newSessionId);
+    // Navigate to session URL
+    router.push(`/chat/${newSessionId}`);
   };
 
-  const handleDeleteSession = (id: string) => {
-    setSessions(sessions.filter(s => s.id !== id));
-    if (currentSessionId === id) {
-      setCurrentSessionId(null);
-      setRefreshKey(prev => prev + 1);
+  const handleSessionCreated = (newSessionId: string) => {
+    // Navigate to the new session URL when auto-created by backend
+    router.push(`/chat/${newSessionId}`);
+  };
+
+  const handleDeleteSession = async (id: string) => {
+    try {
+      const response = await fetch(`http://localhost:8000/api/chat/sessions/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setSessions(sessions.filter(s => s.id !== id));
+        if (currentSessionId === id) {
+          setCurrentSessionId(null);
+          setRefreshKey(prev => prev + 1);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to delete session:', error);
     }
   };
 
@@ -283,6 +250,7 @@ export default function Home() {
             key={refreshKey}
             sessionId={currentSessionId}
             onMessagesChange={(messages) => currentSessionId && handleMessagesChange(currentSessionId, messages)}
+            onSessionCreated={handleSessionCreated}
           />
         </div>
       </main>

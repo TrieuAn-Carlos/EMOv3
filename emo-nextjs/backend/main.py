@@ -63,7 +63,7 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(chat.router, prefix="/api", tags=["Chat"])
+app.include_router(chat.router, prefix="/api/chat", tags=["Chat"])
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(email.router, tags=["Email"])  # Direct email fetch
 app.include_router(calendar.router, prefix="/api/calendar", tags=["Calendar"])

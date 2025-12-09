@@ -1,24 +1,24 @@
 """
 Title Generator Service
-Auto-generate chat session titles using Groq API
+Auto-generate chat session titles using Google Gemini API
 """
 
 import os
 from typing import Optional, List
-from langchain_groq import ChatGroq
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage
 
-# Groq Configuration
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "<GROQ_API_KEY>")
-GROQ_MODEL = "llama-3.1-70b-versatile"  # Most capable model available
+# Gemini Configuration
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMMA_27B_MODEL = "gemma-3-27b-it"
 
 
 class TitleGenerator:
     """Service để generate title cho chat sessions"""
     
     def __init__(self):
-        self.api_key = GROQ_API_KEY
-        self.model_name = GROQ_MODEL
+        self.api_key = GEMINI_API_KEY
+        self.model_name = GEMMA_27B_MODEL
     
     def generate_title(self, messages: List[dict], max_length: int = 30) -> str:
         """
@@ -48,12 +48,12 @@ class TitleGenerator:
         if len(first_user_message) > 500:
             first_user_message = first_user_message[:500] + "..."
         
-        # Try generate với Groq
+        # Try generate với Gemini
         if not self.api_key:
             return self._fallback_title(first_user_message, max_length)
         
         try:
-            llm = ChatGroq(
+            llm = ChatGoogleGenerativeAI(
                 model=self.model_name,
                 api_key=self.api_key,
                 temperature=0.7,

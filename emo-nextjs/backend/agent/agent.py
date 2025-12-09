@@ -9,18 +9,15 @@ import asyncio
 from typing import Optional, AsyncGenerator, Dict
 from datetime import datetime
 
-from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage, AIMessage
 from langgraph.prebuilt import create_react_agent
 from sqlalchemy.orm import Session
 
 # Import from new core modules
 from core import (
-    GROQ_API_KEY,
-    GROQ_MODEL,
-    TEMPERATURE,
     GEMINI_API_KEY,
-    GEMINI_MODEL,
+    GEMMA_27B_MODEL,
+    TEMPERATURE,
     EmoState,
     initialize_context,
     format_context_block,
@@ -61,11 +58,8 @@ _llm = None
 _current_provider = None
 
 
-def get_or_create_agent(force_gemini: bool = False):
-    """Get or create the LangGraph agent with Gemini fallback.
-    
-    Args:
-        force_gemini: Force use of Gemini instead of Groq
+def get_or_create_agent():
+    """Get or create the LangGraph agent using Gemini 2.0 Flash.
     
     Returns:
         LangGraph agent
@@ -73,54 +67,28 @@ def get_or_create_agent(force_gemini: bool = False):
     global _agent, _context_state, _llm, _current_provider
     
     # OPTIMIZATION: Reuse agent if already created
-    if _agent is not None and not (force_gemini and _current_provider != 'gemini'):
+    if _agent is not None:
         return _agent
     
     # Only initialize on first call
     _context_state = initialize_context()
     
-    # Reset if forcing Gemini
-    if force_gemini:
-        _agent = None
-        _llm = None
+    from core.config import MAX_OUTPUT_TOKENS
     
-    from core.config import MAX_OUTPUT_TOKENS, REQUEST_TIMEOUT
+    # Use Gemini 2.0 Flash (supports function calling)
+    if not GEMINI_API_KEY:
+        raise ValueError("GEMINI_API_KEY is required")
     
-    # Try Groq first, fallback to Gemini
-    if not force_gemini and GROQ_API_KEY:
-        try:
-            _llm = ChatGroq(
-                model=GROQ_MODEL,
-                api_key=GROQ_API_KEY,
-                temperature=TEMPERATURE,
-                max_tokens=MAX_OUTPUT_TOKENS,
-                timeout=REQUEST_TIMEOUT,
-            )
-            _current_provider = 'groq'
-            print("✅ Using Groq (llama-3.3-70b-versatile)")
-        except Exception as e:
-            print(f"⚠️ Groq init failed: {str(e)[:100]}")
-            force_gemini = True
+    from langchain_google_genai import ChatGoogleGenerativeAI
     
-    # Fallback to Gemini
-    if force_gemini or not GROQ_API_KEY:
-        if not GEMINI_API_KEY:
-            raise ValueError("No API keys available (GROQ_API_KEY or GEMINI_API_KEY)")
-        
-        from langchain_google_genai import ChatGoogleGenerativeAI
-        from core.config import GEMMA_27B_MODEL
-        
-        # Use Gemma 27B by default, fallback to Gemini 2.0
-        model_to_use = GEMMA_27B_MODEL  # Use Gemma 27B
-        
-        _llm = ChatGoogleGenerativeAI(
-            model=model_to_use,
-            api_key=GEMINI_API_KEY,
-            temperature=TEMPERATURE,
-            max_tokens=MAX_OUTPUT_TOKENS,
-        )
-        _current_provider = 'gemini'
-        print(f"✅ Using Gemini - {model_to_use}")
+    _llm = ChatGoogleGenerativeAI(
+        model=GEMMA_27B_MODEL,
+        api_key=GEMINI_API_KEY,
+        temperature=TEMPERATURE,
+        max_tokens=MAX_OUTPUT_TOKENS,
+    )
+    _current_provider = 'gemini'
+    print(f"✅ Using Gemini 2.0 Flash ({GEMMA_27B_MODEL})")
     
     # Use enhanced tools
     from agent.tools import get_all_tools
@@ -284,68 +252,6 @@ async def chat_with_agent(
     except Exception as e:
         error_msg = str(e)
         result["error"] = error_msg
-        
-        # AUTO-FALLBACK: If Groq rate limit, switch to Gemini and retry
-        if "rate_limit" in error_msg.lower() or "429" in error_msg or "quota" in error_msg.lower():
-            print("🔄 Rate limit detected! Switching to Gemini...")
-            try:
-                global _agent, _llm, _current_provider
-                _agent = None
-                _llm = None
-                
-                # Retry with Gemini
-                agent = get_or_create_agent(force_gemini=True)
-                
-                # Rebuild input
-                parts = []
-                simple_greetings = ["chào", "hi", "hello", "hey", "xin chào", "ok", "yes"]
-                is_simple = any(g in user_message.lower() for g in simple_greetings) and len(user_message) < 20
-                
-                if not is_simple:
-                    try:
-                        memories = query_memory(user_message, n_results=2)
-                        if memories:
-                            mem_formatted = format_memories_for_context(memories)
-                            if mem_formatted:
-                                parts.append(f"[Bộ nhớ liên quan]:\n{mem_formatted}")
-                    except:
-                        pass
-                
-                parts.append(f"[User]: {user_message}")
-                full_input = "\n\n".join(parts) if parts else user_message
-                lc_messages = [HumanMessage(content=full_input)]
-                
-                loop = asyncio.get_event_loop()
-                agent_response = await loop.run_in_executor(
-                    None,
-                    lambda: agent.invoke({"messages": lc_messages})
-                )
-                
-                # Extract response
-                final_messages = agent_response.get("messages", [])
-                for msg in reversed(final_messages):
-                    if isinstance(msg, AIMessage) and msg.content:
-                        result["response"] = str(msg.content)
-                        break
-                
-                if not result["response"]:
-                    result["response"] = "Xin lỗi, không tạo được câu trả lời."
-                
-                # Save messages
-                if session_id and db and result["response"]:
-                    try:
-                        save_session_message(session_id, "user", user_message, db)
-                        save_session_message(session_id, "assistant", result["response"], db)
-                    except:
-                        pass
-                
-                print("✅ Successfully retried with Gemini!")
-                return result
-                
-            except Exception as retry_error:
-                print(f"❌ Gemini retry failed: {retry_error}")
-                result["response"] = "⏳ Groq API đang quá tải và fallback Gemini cũng gặp lỗi. Vui lòng thử lại sau."
-                return result
         
         # Provide user-friendly error messages
         if "tool_use_failed" in error_msg.lower():

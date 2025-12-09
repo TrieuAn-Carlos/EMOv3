@@ -9,8 +9,7 @@ python-dotenv==1.0.1
 # Database
 sqlalchemy==2.0.36
 
-# LLM & AI
-langchain-groq==0.2.1
+# LLM & AI - Google Gemini/Gemma only
 langchain-core==0.3.28
 langchain-google-genai==2.0.8
 langgraph==0.2.64

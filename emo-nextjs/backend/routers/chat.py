@@ -11,9 +11,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from agent.agent import chat_with_agent, stream_chat_with_agent
-from agent.gemma_agent import get_gemma_agent
-from core.config import USE_GEMMA
+from agent.gemma_function_calling import chat_with_gemma, stream_chat_with_gemma
 from database import get_db
 from services.session_service import SessionService
 from services.title_generator import get_title_generator
@@ -65,39 +63,19 @@ class SessionDetailResponse(BaseModel):
     messages: list[dict]  # [{"role": "user", "content": "...", "timestamp": "..."}, ...]
 
 
-@router.post("/chat", response_model=ChatResponse)
+@router.post("/", response_model=ChatResponse)
 async def chat(request: ChatRequest, db: Session = Depends(get_db)):
     """
     Send a message and get a response from EMO.
     
-    Supports both Groq/Gemini (via LangGraph) and Gemma 3 27B (manual function calling).
-    Set USE_GEMMA=true in .env to use Gemma.
+    Uses Gemma 3 27B with manual function calling.
     """
     try:
-        # Check if using Gemma agent
-        if USE_GEMMA:
-            # Use Gemma 3 27B with manual function calling
-            gemma = get_gemma_agent()
-            result = await gemma.chat(
-                user_message=request.message,
-                session_id=request.session_id
-            )
-            
-            # Save messages to database
-            if request.session_id and db and result.get("response"):
-                from agent.agent import save_session_message
-                try:
-                    save_session_message(request.session_id, "user", request.message, db)
-                    save_session_message(request.session_id, "assistant", result["response"], db)
-                except Exception as e:
-                    print(f"Database save warning: {e}")
-        else:
-            # Use Groq/Gemini with LangGraph (default)
-            result = await chat_with_agent(
-                user_message=request.message,
-                memory_context="",  # Skip context for speed
-                session_id=request.session_id,
-                db=db,
+        # Use Gemma 3 27B with manual function calling
+        result = await chat_with_gemma(
+            user_message=request.message,
+            session_id=request.session_id,
+            db=db,
             )
         
         return ChatResponse(
@@ -109,21 +87,30 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/chat/stream")
+@router.get("/stream")
 async def chat_stream(message: str, session_id: Optional[str] = None, db: Session = Depends(get_db)):
     """
     Stream a chat response using Server-Sent Events (SSE).
     
     Query params:
         message: The user's message
-        session_id: Optional session ID for context
+        session_id: Optional session ID for context (auto-created if not provided)
     
     Returns:
         SSE stream with JSON chunks
     """
     async def generate():
         try:
-            async for chunk in stream_chat_with_agent(message, session_id, db):
+            # Auto-create session if not provided
+            actual_session_id = session_id
+            if not actual_session_id:
+                service = SessionService(db)
+                new_session = service.create_session()
+                actual_session_id = new_session.id
+                # Send session_id to frontend
+                yield f"data: {json.dumps({'type': 'session_id', 'session_id': actual_session_id}, ensure_ascii=False)}\n\n"
+            
+            async for chunk in stream_chat_with_gemma(message, actual_session_id, db):
                 # Format as SSE
                 data = json.dumps(chunk, ensure_ascii=False)
                 yield f"data: {data}\n\n"
@@ -149,10 +136,10 @@ async def chat_stream(message: str, session_id: Optional[str] = None, db: Sessio
 async def generate_title(request: TitleRequest):
     """
     Generate a concise title for a chat session based on messages.
-    Uses Groq API to create a 3-5 word summary.
+    Uses Gemma 3 27B to create a 3-5 word summary.
     """
     try:
-        from langchain_groq import ChatGroq
+        from langchain_google_genai import ChatGoogleGenerativeAI
         from langchain_core.messages import HumanMessage
         import os
         
@@ -174,11 +161,11 @@ Conversation:
 
 Title (3-5 words only):"""
         
-        # Use Groq for fast, cheap title generation
-        groq_api_key = os.getenv("GROQ_API_KEY", "<GROQ_API_KEY>")
-        llm = ChatGroq(
-            model="llama-3.1-8b-instant",
-            api_key=groq_api_key,
+        # Use Gemma 3 27B for title generation
+        gemini_api_key = os.getenv("GEMINI_API_KEY")
+        llm = ChatGoogleGenerativeAI(
+            model="gemma-3-27b-it",
+            api_key=gemini_api_key,
             temperature=0.5,
         )
         
@@ -202,7 +189,30 @@ Title (3-5 words only):"""
 # SESSION MANAGEMENT ENDPOINTS
 # =============================================================================
 
-@router.get("/sessions", response_model=list[SessionResponse])
+@router.post("/sessions", response_model=SessionResponse)
+async def create_session(db: Session = Depends(get_db)):
+    """
+    Create a new chat session.
+    
+    Returns:
+        New session with generated ID
+    """
+    try:
+        service = SessionService(db)
+        session = service.create_session()
+        
+        return SessionResponse(
+            id=session.id,
+            title=session.title,
+            title_generated=session.title_generated,
+            created_at=session.created_at.isoformat(),
+            message_count=session.message_count
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/sessions", response_model=dict)
 async def list_sessions(limit: int = 50, offset: int = 0, db: Session = Depends(get_db)):
     """
     List all chat sessions.
@@ -215,16 +225,18 @@ async def list_sessions(limit: int = 50, offset: int = 0, db: Session = Depends(
         service = SessionService(db)
         sessions = service.list_sessions(limit=limit, offset=offset)
         
-        return [
-            SessionResponse(
-                id=session.id,
-                title=session.title,
-                title_generated=session.title_generated,
-                created_at=session.created_at.isoformat(),
-                message_count=session.message_count
-            )
+        session_list = [
+            {
+                "id": session.id,
+                "title": session.title,
+                "title_generated": session.title_generated,
+                "created_at": session.created_at.isoformat(),
+                "message_count": session.message_count,
+            }
             for session in sessions
         ]
+        
+        return {"sessions": session_list}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

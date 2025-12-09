@@ -260,3 +260,32 @@ class SessionService:
         messages = self.get_session_messages(session_id, limit=5)  # Lấy 5 messages đầu
         
         return True, messages
+
+    def auto_generate_title_if_needed(self, session_id: str) -> Optional[str]:
+        """
+        Tự động generate title nếu đủ điều kiện (3+ messages, chưa có title)
+        
+        Args:
+            session_id: Session ID
+            
+        Returns:
+            Generated title nếu có, None nếu không cần generate
+        """
+        should_generate, messages = self.should_generate_title(session_id)
+        
+        if not should_generate or not messages:
+            return None
+        
+        try:
+            from services.title_generator import get_title_generator
+            title_gen = get_title_generator()
+            new_title = title_gen.generate_title_from_session(messages)
+            
+            # Update session với title mới
+            self.update_session_title(session_id, new_title)
+            print(f"✅ Auto-generated title: '{new_title}' for session {session_id[:8]}...")
+            
+            return new_title
+        except Exception as e:
+            print(f"⚠️ Auto title generation failed: {e}")
+            return None

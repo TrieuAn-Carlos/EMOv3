@@ -14,22 +14,14 @@ load_dotenv()
 # LLM CONFIGURATION
 # =============================================================================
 
-# Groq API (primary)
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_MODEL = "llama-3.3-70b-versatile"  # Production model: 280 T/s, 131K context
+# Gemini API - Gemma 3 27B with manual function calling
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMMA_27B_MODEL = "gemma-3-27b-it"  # Gemma 3 27B with manual function calling
 TEMPERATURE = 0.3  # Lower for faster, more focused responses
 
-# Gemini API (primary fallback)
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL = "gemini-2.0-flash-exp"  # Latest fast model
-# Gemma 3 27B (via Gemini API) - Manual function calling
-GEMMA_27B_MODEL = "gemma-3-27b-it"  # Gemma 3 27B Instruction-tuned
-USE_GEMMA = os.getenv("USE_GEMMA", "false").lower() == "true"  # Toggle for Gemma
-
 # Generation settings (OPTIMIZED for speed)
-MAX_OUTPUT_TOKENS = 1024  # Reduced from 4096 for faster generation
+MAX_OUTPUT_TOKENS = 2048  # Increased for function calling responses
 TITLE_MAX_TOKENS = 50
-REQUEST_TIMEOUT = 30  # 30 second timeout
 REQUEST_TIMEOUT = 30  # 30 second timeout
 
 # =============================================================================

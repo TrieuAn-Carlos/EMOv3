@@ -22,9 +22,10 @@ const SUGGESTIONS = [
 interface ChatContainerProps {
     sessionId?: string | null;
     onMessagesChange?: (messages: ChatMessage[]) => void;
+    onSessionCreated?: (sessionId: string) => void;
 }
 
-export function ChatContainer({ sessionId, onMessagesChange }: ChatContainerProps = {}) {
+export function ChatContainer({ sessionId, onMessagesChange, onSessionCreated }: ChatContainerProps = {}) {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -45,6 +46,32 @@ export function ChatContainer({ sessionId, onMessagesChange }: ChatContainerProp
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
+
+    // Load messages when sessionId changes
+    useEffect(() => {
+        if (sessionId) {
+            loadSessionMessages(sessionId);
+        } else {
+            setMessages([]);
+        }
+    }, [sessionId]);
+
+    const loadSessionMessages = async (sid: string) => {
+        try {
+            const response = await fetch(`http://localhost:8000/api/chat/sessions/${sid}`);
+            if (response.ok) {
+                const data = await response.json();
+                const loadedMessages: ChatMessage[] = data.messages.map((msg: any) => ({
+                    id: msg.timestamp,
+                    role: msg.role,
+                    content: msg.content,
+                }));
+                setMessages(loadedMessages);
+            }
+        } catch (error) {
+            console.error('Failed to load session messages:', error);
+        }
+    };
 
     // Notify parent of message changes without re-render loop
     useEffect(() => {
@@ -109,25 +136,38 @@ export function ChatContainer({ sessionId, onMessagesChange }: ChatContainerProp
 
             // Use streaming endpoint with Server-Sent Events
             const encodedMessage = encodeURIComponent(userMessage.content);
-            const encodedContext = encodeURIComponent(previousMessages);
+            const sessionParam = sessionId ? `&session_id=${sessionId}` : '';
             const eventSource = new EventSource(
-                `http://localhost:8000/api/chat/stream?message=${encodedMessage}&context=${encodedContext}`
+                `http://localhost:8000/api/chat/stream?message=${encodedMessage}${sessionParam}`
             );
 
             let accumulatedContent = "";
             let accumulatedTools: string[] = [];
             let accumulatedThinking = "";
             let messageCreated = false; // Track if message was added to state
+            let newSessionId: string | null = null; // Track auto-created session
 
             eventSource.onmessage = (event) => {
                 if (event.data === "[DONE]") {
                     eventSource.close();
                     setIsLoading(false);
+
+                    // If session was auto-created, navigate to the new session URL
+                    if (newSessionId && onSessionCreated) {
+                        onSessionCreated(newSessionId);
+                    }
                     return;
                 }
 
                 try {
                     const chunk = JSON.parse(event.data);
+
+                    // Handle session_id from backend
+                    if (chunk.type === "session_id" && chunk.session_id) {
+                        newSessionId = chunk.session_id;
+                        // Don't navigate yet - wait for stream to complete
+                        return;
+                    }
 
                     if (chunk.error) {
                         eventSource.close();
@@ -263,9 +303,9 @@ export function ChatContainer({ sessionId, onMessagesChange }: ChatContainerProp
     };
 
     return (
-        <div className="flex flex-col h-full max-w-3xl mx-auto">
+        <div className="flex flex-col h-full">
             {/* Messages area */}
-            <div className="flex-1 overflow-y-auto px-4 py-8">
+            <div className="flex-1 overflow-y-auto px-4 py-8 max-w-3xl mx-auto w-full">
                 {messages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-center px-4">
                         <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[var(--primary)] to-[var(--accent)] flex items-center justify-center mb-5 shadow-lg">
@@ -358,7 +398,7 @@ export function ChatContainer({ sessionId, onMessagesChange }: ChatContainerProp
             </div>
 
             {/* Input area */}
-            <div className="px-4 pb-6 pt-4">
+            <div className="px-4 pb-6 pt-4 max-w-3xl mx-auto w-full">
                 <form onSubmit={handleSubmit} className="relative">
                     <textarea
                         ref={inputRef}

@@ -244,12 +244,24 @@ def quick_gmail_search(query: str, max_results: int = 5) -> str:
                 'date': data['date']
             })
         
-        email_previews = [
-            f"[{d['index']}] {d['sender_display']} - {d['subject']} - {d['date_display']}"
-            for d in email_data
-        ]
+        # Build compact, clean email list
+        email_previews = []
+        for d in email_data:
+            # Truncate long subjects
+            subject = d['subject']
+            if len(subject) > 50:
+                subject = subject[:47] + "..."
+            
+            # Truncate long sender names
+            sender = d['sender_display']
+            if len(sender) > 25:
+                sender = sender[:22] + "..."
+            
+            email_previews.append(
+                f"**[{d['index']}]** `{sender}` · _{subject}_ · `{d['date_display']}`"
+            )
         
-        header = f"Found {len(messages)} email(s). Use 'get_email' with index number for full content:\n"
+        header = f"📬 **Found {len(messages)} email(s)**\n\n"
         return header + "\n".join(email_previews)
     except Exception as e:
         if "invalid_grant" in str(e).lower():
@@ -302,22 +314,32 @@ def get_email_by_index(index: int) -> str:
         
         find_attachments(message['payload'])
         
-        # Build output
+        # Truncate long body for preview
+        body_preview = body or "(No text content)"
+        if len(body_preview) > 500:
+            body_preview = body_preview[:497] + "..."
+        
+        # Build compact, clean output
         output = [
-            f"**Email #{index}**",
-            f"**Subject:** {headers.get('Subject', 'No Subject')}",
+            f"### 📧 Email #{index}",
+            "",
             f"**From:** {headers.get('From', 'Unknown')}",
+            f"**Subject:** {headers.get('Subject', 'No Subject')}",
             f"**Date:** {headers.get('Date', 'Unknown')}"
         ]
         
         if attachment_names:
-            output.append(f"**Attachments ({len(attachment_names)}):** {', '.join(attachment_names)}")
+            attachments_str = ", ".join(f"`{name}`" for name in attachment_names[:3])
+            if len(attachment_names) > 3:
+                attachments_str += f" (+{len(attachment_names)-3} more)"
+            output.append(f"**📎 Attachments:** {attachments_str}")
         
         output.extend([
             "",
-            "---",
-            "",
-            body or "(No text content)"
+            "**Content:**",
+            "```",
+            body_preview,
+            "```"
         ])
         
         return "\n".join(output)

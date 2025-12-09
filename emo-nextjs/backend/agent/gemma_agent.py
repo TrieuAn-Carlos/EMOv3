@@ -47,16 +47,16 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "get_email",
-        "description": "Get detailed content of a specific email by ID",
+        "description": "Get detailed content of a specific email by index number",
         "parameters": {
             "type": "object",
             "properties": {
-                "email_id": {
-                    "type": "string",
-                    "description": "The ID of the email to retrieve"
+                "index": {
+                    "type": "integer",
+                    "description": "The index number of the email from search results (1-based)"
                 }
             },
-            "required": ["email_id"]
+            "required": ["index"]
         }
     },
     {
@@ -69,107 +69,90 @@ TOOL_DEFINITIONS = [
                     "type": "string",
                     "description": "Search query for calendar events"
                 },
-                "time_min": {
-                    "type": "string",
-                    "description": "Start time for search (ISO format)"
-                },
-                "time_max": {
-                    "type": "string",
-                    "description": "End time for search (ISO format)"
+                "days_ahead": {
+                    "type": "integer",
+                    "description": "Number of days to look ahead (default: 7)",
+                    "default": 7
                 }
             },
             "required": ["query"]
         }
     },
     {
-        "name": "search_web",
-        "description": "Search the web for information using DuckDuckGo",
+        "name": "get_news",
+        "description": "Get current news headlines on a specific topic",
         "parameters": {
             "type": "object",
             "properties": {
-                "query": {
+                "topic": {
                     "type": "string",
-                    "description": "Search query"
-                },
-                "num_results": {
-                    "type": "integer",
-                    "description": "Number of results to return (default: 5)",
-                    "default": 5
+                    "description": "Topic: 'tech', 'ai', 'world', 'vietnam', or 'general'",
+                    "default": "general"
                 }
             },
-            "required": ["query"]
+            "required": []
+        }
+    },
+    {
+        "name": "read_webpage",
+        "description": "Read and extract text content from a webpage URL",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "description": "The webpage URL to read"
+                }
+            },
+            "required": ["url"]
+        }
+    },
+    {
+        "name": "list_tasks",
+        "description": "List all tasks/todos",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+        }
+    },
+    {
+        "name": "add_task",
+        "description": "Add a new task/todo",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "task": {
+                    "type": "string",
+                    "description": "Task description"
+                }
+            },
+            "required": ["task"]
         }
     }
 ]
 
 
 def build_gemma_system_prompt(context_state: EmoState) -> str:
-    """Build system prompt with function calling instructions for Gemma."""
+    """Build system prompt with function calling instructions for Gemma.
+    
+    Based on official guide: https://ai.google.dev/gemma/docs/capabilities/function-calling
+    """
     context_block = format_context_block(context_state)
     
     tools_json = json.dumps(TOOL_DEFINITIONS, indent=2)
     
-    return f"""Bạn là Emo, trợ lý AI cá nhân thông minh với khả năng gọi các công cụ (tools).
+    # Follow EXACT format from Google's documentation
+    return f"""Bạn là Emo, trợ lý AI cá nhân.
 
 {context_block}
 
-## AVAILABLE TOOLS
+You have access to functions. If you decide to invoke any of the function(s), you MUST put it in the format of
+{{"name": function name, "parameters": dictionary of argument name and its value}}
 
-{tools_json}
+You SHOULD NOT include any other text in the response if you call a function
 
-## FUNCTION CALLING INSTRUCTIONS
-
-Khi bạn cần gọi một tool để lấy thông tin:
-
-1. Output JSON object với format CHÍNH XÁC này:
-```json
-{{
-  "thought": "Giải thích ngắn gọn tại sao cần gọi tool này",
-  "tool_name": "tên_tool",
-  "parameters": {{
-    "param1": "value1",
-    "param2": "value2"
-  }}
-}}
-```
-
-2. Sau khi nhận kết quả từ tool, phân tích và trả lời người dùng bằng ngôn ngữ tự nhiên
-
-3. Nếu cần gọi nhiều tools, gọi từng cái một và đợi kết quả
-
-## QUY TẮC
-
-1. TRẢ LỜI NGẮN GỌN - không lặp lại câu hỏi
-2. CHỈ GỌI TOOL khi thực sự cần dữ liệu mới
-3. EMAIL: Gọi search_gmail → hiển thị danh sách → user chọn số → get_email
-4. FORMAT: Markdown, emoji vừa phải 😊
-5. LUÔN output valid JSON khi gọi tool
-
-## EXAMPLES
-
-User: "Tìm email từ Hoa"
-You: 
-```json
-{{
-  "thought": "Cần search Gmail để tìm email từ Hoa",
-  "tool_name": "search_gmail",
-  "parameters": {{
-    "query": "from:Hoa"
-  }}
-}}
-```
-
-User: "Thời tiết hôm nay"
-You:
-```json
-{{
-  "thought": "Cần search web để tìm thông tin thời tiết",
-  "tool_name": "search_web",
-  "parameters": {{
-    "query": "thời tiết hôm nay"
-  }}
-}}
-```"""
+{tools_json}"""
 
 
 # =============================================================================
@@ -182,6 +165,9 @@ class GemmaAgent:
     def __init__(self, model: str = "gemma-3-27b-it"):
         """Initialize Gemma agent.
         
+        IMPORTANT: Gemma does NOT support native function calling via API.
+        We use manual prompt engineering per: https://ai.google.dev/gemma/docs/capabilities/function-calling
+        
         Args:
             model: Gemma model to use (default: gemma-3-27b-it)
         """
@@ -190,44 +176,34 @@ class GemmaAgent:
         
         from core.config import MAX_OUTPUT_TOKENS
         
+        # Initialize LLM WITHOUT any tools - Gemma doesn't support function calling API
         self.llm = ChatGoogleGenerativeAI(
             model=model,
             api_key=GEMINI_API_KEY,
             temperature=TEMPERATURE,
             max_tokens=MAX_OUTPUT_TOKENS,
+            # DO NOT add tools parameter - Gemma doesn't support it
         )
         
         self.context_state = initialize_context()
         self.system_prompt = build_gemma_system_prompt(self.context_state)
         self.conversation_history: List[Dict[str, str]] = []
         
-        print(f"✅ Gemma Agent initialized: {model}")
+        print(f"✅ Gemma Agent initialized: {model} (manual function calling mode)")
     
     def parse_tool_call(self, text: str) -> Optional[Dict[str, Any]]:
         """Parse tool call from model output.
+        
+        Gemma outputs: {"name": "tool_name", "parameters": {...}}
+        per official documentation.
         
         Args:
             text: Model output text
             
         Returns:
-            Dict with tool_name and parameters, or None if no tool call
+            Dict with name and parameters, or None if no tool call
         """
-        # Try to extract JSON from markdown code blocks
-        if "```json" in text:
-            try:
-                json_str = text.split("```json")[1].split("```")[0].strip()
-                data = json.loads(json_str)
-                
-                if "tool_name" in data and "parameters" in data:
-                    return {
-                        "tool_name": data["tool_name"],
-                        "parameters": data["parameters"],
-                        "thought": data.get("thought", "")
-                    }
-            except (json.JSONDecodeError, IndexError):
-                pass
-        
-        # Try to find JSON object directly
+        # Try to find JSON object matching {"name": ..., "parameters": ...}
         try:
             start = text.find("{")
             end = text.rfind("}") + 1
@@ -236,11 +212,11 @@ class GemmaAgent:
                 json_str = text[start:end]
                 data = json.loads(json_str)
                 
-                if "tool_name" in data and "parameters" in data:
+                # Check for official Gemma format
+                if "name" in data and "parameters" in data:
                     return {
-                        "tool_name": data["tool_name"],
-                        "parameters": data["parameters"],
-                        "thought": data.get("thought", "")
+                        "tool_name": data["name"],
+                        "parameters": data["parameters"]
                     }
         except json.JSONDecodeError:
             pass
@@ -287,6 +263,8 @@ class GemmaAgent:
         Returns:
             Dict with response, tools_used, and thinking
         """
+        print(f"🤖 Gemma processing: {user_message[:50]}...")
+        
         result = {
             "response": "",
             "tools_used": [],
@@ -326,6 +304,7 @@ class GemmaAgent:
         while iteration < max_iterations:
             try:
                 # Call LLM
+                print(f"📡 Calling Gemma LLM (iteration {iteration})...")
                 loop = asyncio.get_event_loop()
                 response = await loop.run_in_executor(
                     None,
@@ -333,6 +312,7 @@ class GemmaAgent:
                 )
                 
                 response_text = response.content
+                print(f"📝 Gemma response: {response_text[:100]}...")
                 
                 # Check for tool call
                 tool_call = self.parse_tool_call(response_text)
@@ -341,37 +321,29 @@ class GemmaAgent:
                     # Execute tool
                     tool_name = tool_call["tool_name"]
                     parameters = tool_call["parameters"]
-                    thought = tool_call.get("thought", "")
                     
                     result["tools_used"].append(tool_name)
-                    if thought:
-                        result["thinking"] += f"{thought}\n"
                     
                     print(f"🔧 Calling tool: {tool_name} with {parameters}")
                     
                     # Execute and get result
                     tool_result = self.execute_tool(tool_name, parameters)
                     
-                    # Add to conversation
+                    # Add tool result as system message asking for interpretation
                     messages.append(AIMessage(content=response_text))
                     messages.append(HumanMessage(
-                        content=f"[Tool Result from {tool_name}]\n\n{tool_result}\n\nHãy phân tích kết quả này và trả lời người dùng."
+                        content=f"Tool '{tool_name}' returned:\n\n{tool_result}\n\nPhân tích kết quả và trả lời người dùng bằng tiếng Việt."
                     ))
                     
                     iteration += 1
                 else:
-                    # No tool call - this is the final response
-                    # Clean up JSON artifacts if any
-                    final_response = response_text
-                    if "```json" in final_response:
-                        # Remove JSON blocks from final response
-                        parts = final_response.split("```json")
-                        final_response = parts[0].strip()
-                    
-                    result["response"] = final_response.strip()
+                    # No tool call - final response
+                    result["response"] = response_text.strip()
+                    print(f"✅ Final response ready: {len(result['response'])} chars")
                     break
             
             except Exception as e:
+                print(f"❌ Gemma error: {str(e)[:200]}")
                 result["error"] = str(e)[:200]
                 result["response"] = f"❌ Có lỗi: {str(e)[:100]}"
                 break
@@ -379,7 +351,9 @@ class GemmaAgent:
         # Fallback if no response generated
         if not result["response"]:
             result["response"] = "Xin lỗi, tôi không tạo được câu trả lời. Vui lòng thử lại."
+            print("⚠️ No response generated, using fallback")
         
+        print(f"🎯 Returning result with {len(result['response'])} chars")
         return result
 
 

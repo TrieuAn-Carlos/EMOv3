@@ -162,9 +162,9 @@ def add_task(task_description: str, deadline: str = None) -> str:
     _save_json(TODO_FILE, tasks)
     
     pending_count = len([t for t in tasks if t["status"] == "pending"])
-    deadline_info = f"\n⏰ Deadline: {deadline}" if deadline else ""
+    deadline_info = f"\nDeadline: {deadline}" if deadline else ""
     
-    return f"✅ Added: '{task_description}'{deadline_info}\n📋 {pending_count} pending task(s)"
+    return f"Added: '{task_description}'{deadline_info}\n{pending_count} pending task(s)"
 
 
 @tool
@@ -179,9 +179,9 @@ def list_tasks() -> str:
     pending = [t for t in tasks if t["status"] == "pending"]
     
     if not pending:
-        return "📋 Your to-do list is empty!"
+        return "Your to-do list is empty!"
     
-    lines = ["📋 **Current To-Do List:**"]
+    lines = ["**Current To-Do List:**"]
     for i, task in enumerate(pending, 1):
         created = task.get("created_at", "")[:10]
         lines.append(f"{i}. {task['task']} (added: {created})")
@@ -205,10 +205,10 @@ def complete_task(task_number: int) -> str:
     pending = [t for t in tasks if t["status"] == "pending"]
     
     if not pending:
-        return "📋 No tasks to complete!"
+        return "No tasks to complete!"
     
     if task_number < 1 or task_number > len(pending):
-        return f"❌ Invalid. Choose between 1 and {len(pending)}."
+        return f"Invalid. Choose between 1 and {len(pending)}."
     
     task_id = pending[task_number - 1]["id"]
     task_name = pending[task_number - 1]["task"]
@@ -221,7 +221,7 @@ def complete_task(task_number: int) -> str:
     _save_json(TODO_FILE, tasks)
     remaining = len([t for t in tasks if t["status"] == "pending"])
     
-    return f"✅ Done: '{task_name}'\n📋 {remaining} task(s) remaining"
+    return f"Done: '{task_name}'\n{remaining} task(s) remaining"
 
 
 # =============================================================================
@@ -342,7 +342,7 @@ def remember_fact(fact: str, category: str = "other") -> str:
             ids=[doc_id],
             metadatas=[{"category": category, "saved_at": datetime.now().isoformat()}]
         )
-        return f"✅ Remembered: {fact}"
+        return f"Remembered: {fact}"
     except Exception as e:
         return f"Error saving: {str(e)[:50]}"
 
@@ -565,7 +565,7 @@ def save_short_term_memory(content: str, context: str, importance: str = "normal
             }]
         )
         
-        return f"✓ Saved to session memory: '{content[:50]}...'"
+        return f"Saved to session memory: '{content[:50]}...'"
     except Exception as e:
         return f"Error: {str(e)[:50]}"
 
@@ -636,7 +636,7 @@ def save_project_memory(project_name: str, content: str, content_type: str = "no
             }]
         )
         
-        return f"✓ Saved to project '{project_name}': '{content[:50]}...'"
+        return f"Saved to project '{project_name}': '{content[:50]}...'"
     except Exception as e:
         return f"Error: {str(e)[:50]}"
 
@@ -714,7 +714,7 @@ def list_projects() -> str:
         
         output = ["=== ACTIVE PROJECTS ==="]
         for name, count in projects.items():
-            output.append(f"📁 {name} ({count} items)")
+            output.append(f"{name} ({count} items)")
         
         return "\n".join(output)
     except Exception as e:
@@ -756,7 +756,7 @@ def update_long_term_memory(old_fact: str, new_fact: str, category: str) -> str:
             metadatas=[{"category": category, "saved_at": datetime.now().isoformat()}]
         )
         
-        return f"✓ Updated: '{old_fact[:30]}...' → '{new_fact[:30]}...'"
+        return f"Updated: '{old_fact[:30]}...' → '{new_fact[:30]}...'"
     except Exception as e:
         return f"Error: {str(e)[:50]}"
 
