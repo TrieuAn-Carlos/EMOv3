@@ -68,6 +68,60 @@ class Message(Base):
         }
 
 
+# =============================================================================
+# SOCRATIQ MODELS
+# =============================================================================
+
+class Document(Base):
+    """Model for uploaded PDF documents"""
+    __tablename__ = "documents"
+    
+    id = Column(String, primary_key=True)
+    filename = Column(String, nullable=False)
+    page_count = Column(Integer, default=0)
+    uploaded_at = Column(DateTime, default=datetime.now)
+    
+    # Relationship with quiz results
+    quiz_results = relationship("QuizResult", back_populates="document", cascade="all, delete-orphan")
+    
+    def to_dict(self):
+        """Convert to dictionary"""
+        return {
+            "id": self.id,
+            "filename": self.filename,
+            "page_count": self.page_count,
+            "uploaded_at": self.uploaded_at.isoformat()
+        }
+
+
+class QuizResult(Base):
+    """Model for quiz attempt results"""
+    __tablename__ = "quiz_results"
+    
+    id = Column(String, primary_key=True)
+    document_id = Column(String, ForeignKey("documents.id", ondelete="CASCADE"), nullable=False)
+    page_number = Column(Integer, nullable=True)  # None if from highlight
+    score = Column(Integer, default=0)
+    total_questions = Column(Integer, default=0)
+    difficulty = Column(String, default="Beginner")  # Beginner, Intermediate, Advanced
+    created_at = Column(DateTime, default=datetime.now)
+    
+    # Relationship with document
+    document = relationship("Document", back_populates="quiz_results")
+    
+    def to_dict(self):
+        """Convert to dictionary"""
+        return {
+            "id": self.id,
+            "document_id": self.document_id,
+            "page_number": self.page_number,
+            "score": self.score,
+            "total_questions": self.total_questions,
+            "difficulty": self.difficulty,
+            "created_at": self.created_at.isoformat()
+        }
+
+
 def init_db():
     """Initialize database - create tables if not exist"""
     global engine, SessionLocal

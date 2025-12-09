@@ -490,17 +490,20 @@ def create_quiz(topic: str, num_questions: int = 5) -> str:
         Quiz in JSON format
     """
     try:
-        import google.generativeai as genai
+        from langchain_google_genai import ChatGoogleGenerativeAI
         
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
             return "API key not configured."
         
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-2.5-flash")
+        llm = ChatGoogleGenerativeAI(
+            model="gemma-3-27b-it",
+            google_api_key=api_key,
+            temperature=0.7
+        )
         
         prompt = f"""Generate a {num_questions}-question quiz about "{topic}".
-Return ONLY valid JSON:
+Return ONLY valid JSON (no markdown):
 {{
     "title": "Quiz: {topic}",
     "questions": [
@@ -515,10 +518,53 @@ Return ONLY valid JSON:
     ]
 }}"""
         
-        response = model.generate_content(prompt)
-        return f"QUIZ_CREATED:{response.text}"
+        response = llm.invoke(prompt)
+        return f"QUIZ_CREATED:{response.content}"
     except Exception as e:
         return f"Error creating quiz: {str(e)[:100]}"
+
+
+@tool
+def generate_document_quiz(doc_id: str, page: int = 1, difficulty: str = "Beginner", num_questions: int = 5) -> str:
+    """
+    Generate a quiz from an uploaded PDF document using SocratiQ.
+    
+    Use this tool when user wants to create a quiz from their uploaded document.
+    
+    Args:
+        doc_id: The document ID from the upload
+        page: Which page to quiz on (default 1)
+        difficulty: "Beginner", "Intermediate", or "Advanced"
+        num_questions: Number of questions (default 5)
+    
+    Returns:
+        Quiz in JSON format with questions, options, and explanations
+    """
+    try:
+        from agent.socratiq_agent import generate_quiz as _gen_quiz
+        result = _gen_quiz(doc_id, page, difficulty, num_questions)
+        
+        if not result or not result.get("questions"):
+            return "Không thể tạo quiz từ trang này. Hãy thử trang khác."
+        
+        # Format as readable output
+        output = [f"📝 **Quiz: {result.get('title', 'Document Quiz')}**"]
+        output.append(f"Độ khó: {result.get('difficulty', difficulty)} | {len(result['questions'])} câu hỏi\n")
+        
+        for i, q in enumerate(result["questions"], 1):
+            output.append(f"**Câu {i}:** {q['question']}")
+            for j, opt in enumerate(q["options"]):
+                letter = chr(65 + j)  # A, B, C, D
+                output.append(f"  {letter}. {opt}")
+            output.append(f"  ✅ Đáp án: {q['correct_answer']}")
+            output.append(f"  💡 Giải thích: {q['explanation']}\n")
+        
+        return "\n".join(output)
+        
+    except ImportError:
+        return "SocratiQ module not available. Please ensure document is uploaded first."
+    except Exception as e:
+        return f"Error generating quiz: {str(e)[:100]}"
 
 
 # =============================================================================
@@ -795,7 +841,8 @@ def get_all_tools() -> list:
         get_calendar_events,
         add_calendar_event,
         search_calendar,
-        # Quiz (1)
+        # Quiz (2)
         create_quiz,
+        generate_document_quiz,
     ]
 
