@@ -12,6 +12,8 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from agent.agent import chat_with_agent, stream_chat_with_agent
+from agent.gemma_agent import get_gemma_agent
+from core.config import USE_GEMMA
 from database import get_db
 from services.session_service import SessionService
 from services.title_generator import get_title_generator
@@ -68,17 +70,35 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db)):
     """
     Send a message and get a response from EMO.
     
-    OPTIMIZED: Removed unnecessary context loading for speed.
+    Supports both Groq/Gemini (via LangGraph) and Gemma 3 27B (manual function calling).
+    Set USE_GEMMA=true in .env to use Gemma.
     """
     try:
-        # OPTIMIZATION: Don't load session history - agent handles fresh each time
-        # This reduces processing time from 30s to ~3-5s
-        result = await chat_with_agent(
-            user_message=request.message,
-            memory_context="",  # Skip context for speed
-            session_id=request.session_id,
-            db=db,
-        )
+        # Check if using Gemma agent
+        if USE_GEMMA:
+            # Use Gemma 3 27B with manual function calling
+            gemma = get_gemma_agent()
+            result = await gemma.chat(
+                user_message=request.message,
+                session_id=request.session_id
+            )
+            
+            # Save messages to database
+            if request.session_id and db and result.get("response"):
+                from agent.agent import save_session_message
+                try:
+                    save_session_message(request.session_id, "user", request.message, db)
+                    save_session_message(request.session_id, "assistant", result["response"], db)
+                except Exception as e:
+                    print(f"Database save warning: {e}")
+        else:
+            # Use Groq/Gemini with LangGraph (default)
+            result = await chat_with_agent(
+                user_message=request.message,
+                memory_context="",  # Skip context for speed
+                session_id=request.session_id,
+                db=db,
+            )
         
         return ChatResponse(
             response=result.get("response", ""),

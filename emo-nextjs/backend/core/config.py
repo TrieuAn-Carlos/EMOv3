@@ -22,8 +22,9 @@ TEMPERATURE = 0.3  # Lower for faster, more focused responses
 # Gemini API (primary fallback)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_MODEL = "gemini-2.0-flash-exp"  # Latest fast model
-# Gemma 3 27B (via Gemini API)
-GEMMA_27B_MODEL = "gemma-3-27b"  # Gemma 3 27B model
+# Gemma 3 27B (via Gemini API) - Manual function calling
+GEMMA_27B_MODEL = "gemma-3-27b-it"  # Gemma 3 27B Instruction-tuned
+USE_GEMMA = os.getenv("USE_GEMMA", "false").lower() == "true"  # Toggle for Gemma
 
 # Generation settings (OPTIMIZED for speed)
 MAX_OUTPUT_TOKENS = 1024  # Reduced from 4096 for faster generation
