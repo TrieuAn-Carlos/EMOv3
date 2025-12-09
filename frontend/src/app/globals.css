@@ -5,36 +5,36 @@
    THEME SYSTEM - Light & Dark Mode
    ============================================ */
 
-/* Dark Mode (Default) */
+/* Dark Mode (Default) - Warm, sophisticated palette */
 [data-theme="dark"] {
-    /* Base colors */
-    --background: #09090b;
-    --surface: #18181b;
-    --surface-hover: #27272a;
-    --border: #27272a;
-    --border-light: #3f3f46;
+    /* Base colors - Warm charcoal/brown undertones */
+    --background: #0F0E0D;
+    --surface: #1A1917;
+    --surface-hover: #252422;
+    --border: #2E2C29;
+    --border-light: #3D3A36;
 
-    /* Text */
-    --text: #fafafa;
-    --text-muted: #a1a1aa;
-    --text-dim: #71717a;
+    /* Text - Cream-tinted, not pure white */
+    --text: #C2C0B6;
+    --text-muted: #A8A29E;
+    --text-dim: #78716C;
 
-    /* Accent */
-    --primary: #7c3aed;
-    --primary-hover: #6d28d9;
-    --primary-light: #a78bfa;
-    --accent: #06b6d4;
-    --accent-hover: #0891b2;
+    /* Accent - Sage green to match light mode */
+    --primary: #8FAF95;
+    --primary-hover: #7A9B80;
+    --primary-light: #A8C4AD;
+    --accent: #C4A87C;
+    --accent-hover: #B39768;
 
-    /* Glass effects */
-    --glass-bg: rgba(24, 24, 27, 0.6);
-    --glass-border: rgba(63, 63, 70, 0.5);
+    /* Glass effects - Warm tint */
+    --glass-bg: rgba(26, 25, 23, 0.85);
+    --glass-border: rgba(61, 58, 54, 0.6);
 
-    /* Shadows */
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
-    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
-    --shadow-glow: 0 0 20px rgba(124, 58, 237, 0.3);
+    /* Shadows - Warmer, subtle */
+    --shadow-sm: 0 1px 2px rgba(15, 14, 13, 0.4);
+    --shadow-md: 0 4px 6px rgba(15, 14, 13, 0.5);
+    --shadow-lg: 0 10px 15px rgba(15, 14, 13, 0.6);
+    --shadow-glow: 0 0 20px rgba(143, 175, 149, 0.15);
 }
 
 /* Light Mode - Calm, warm aesthetic */

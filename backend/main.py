@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import routers
-from routers import chat, auth, email, calendar, tasks
+from routers import chat, auth, email, calendar, tasks, socratiq
 
 # Import database
 from database import init_db, close_db
@@ -68,6 +68,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(email.router, tags=["Email"])  # Direct email fetch
 app.include_router(calendar.router, prefix="/api/calendar", tags=["Calendar"])
 app.include_router(tasks.router, prefix="/api", tags=["Tasks"])
+app.include_router(socratiq.router, prefix="/api", tags=["SocratiQ"])
 
 
 @app.get("/")

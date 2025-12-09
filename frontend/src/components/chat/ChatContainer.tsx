@@ -1,9 +1,22 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { Send, ArrowUp, Loader2, ChevronDown, ChevronRight, Wrench, ClipboardList, Mail, Brain, Newspaper, MessageCircle, GraduationCap, Bug } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Send, ArrowUp, Loader2, ChevronDown, ChevronRight, Wrench, ClipboardList, Mail, Brain, Newspaper, MessageCircle, Paperclip, FileText, X, GraduationCap, Bug } from "lucide-react";
 import { Message } from "./Message";
+import { QuizMessage } from "../QuizMessage";
 import { useAppStore } from "@/store/useAppStore";
+
+interface QuizData {
+    title: string;
+    difficulty: string;
+    questions: Array<{
+        type?: string;
+        question: string;
+        options: string[];
+        correct_answer: string;
+        explanation: string;
+    }>;
+}
 
 interface ChatMessage {
     id: string;
@@ -12,6 +25,7 @@ interface ChatMessage {
     tools?: string[];
     thinking?: string;
     debugInfo?: string;
+    quizData?: QuizData;
 }
 
 const SUGGESTIONS = [
@@ -21,11 +35,21 @@ const SUGGESTIONS = [
     { label: "Tin tech", prompt: "What are the latest tech news headlines?", icon: Newspaper },
 ];
 
+interface AttachedDocument {
+    id: string;
+    filename: string;
+    page_count: number;
+}
+
 interface ChatContainerProps {
     sessionId?: string | null;
     onMessagesChange?: (messages: ChatMessage[]) => void;
     onSessionCreated?: (sessionId: string) => void;
+    onDocumentAttached?: (doc: AttachedDocument) => void;
+    attachedDocId?: string;
 }
+
+const API_BASE = 'http://localhost:8000/api';
 
 interface StudyToggleButtonProps {
     isStudyMode: boolean;
@@ -47,15 +71,17 @@ function StudyToggleButton({ isStudyMode, onClick }: StudyToggleButtonProps) {
     );
 }
 
-export function ChatContainer({ sessionId, onMessagesChange, onSessionCreated }: ChatContainerProps = {}) {
+export function ChatContainer({ sessionId, onMessagesChange, onSessionCreated, onDocumentAttached, attachedDocId }: ChatContainerProps = {}) {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [expandedThinking, setExpandedThinking] = useState<string | null>(null);
     const [isStudyMode, setIsStudyMode] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
     const { debugMode } = useAppStore();
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const onMessagesChangeRef = useRef(onMessagesChange);
 
     // Keep the callback stable to avoid re-trigger loops
@@ -79,6 +105,73 @@ export function ChatContainer({ sessionId, onMessagesChange, onSessionCreated }:
             setMessages([]);
         }
     }, [sessionId]);
+
+    // Handle quiz generation
+    const generateQuiz = useCallback(async (docId: string, page: number, difficulty: string, selectedText?: string) => {
+        // Add user message
+        const userMsg: ChatMessage = {
+            id: Date.now().toString(),
+            role: 'user',
+            content: selectedText
+                ? `📝 Tạo quiz từ đoạn văn đã chọn (độ khó: ${difficulty === 'Beginner' ? 'Dễ' : difficulty === 'Intermediate' ? 'Trung bình' : 'Khó'})`
+                : `📝 Tạo quiz từ trang ${page} (độ khó: ${difficulty === 'Beginner' ? 'Dễ' : difficulty === 'Intermediate' ? 'Trung bình' : 'Khó'})`
+        };
+        setMessages(prev => [...prev, userMsg]);
+        setIsLoading(true);
+
+        try {
+            const res = await fetch(`${API_BASE}/documents/quiz`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    doc_id: docId,
+                    page: selectedText ? undefined : page,
+                    context: selectedText || undefined,
+                    difficulty,
+                    num_questions: 5
+                })
+            });
+
+            if (!res.ok) throw new Error('Quiz generation failed');
+            const data = await res.json();
+
+            // Add quiz message
+            const quizMsg: ChatMessage = {
+                id: (Date.now() + 1).toString(),
+                role: 'assistant',
+                content: '',
+                quizData: {
+                    title: data.title,
+                    difficulty: data.difficulty,
+                    questions: data.questions
+                }
+            };
+            setMessages(prev => [...prev, quizMsg]);
+        } catch (error) {
+            console.error('Quiz error:', error);
+            const errMsg: ChatMessage = {
+                id: (Date.now() + 1).toString(),
+                role: 'assistant',
+                content: '❌ Không thể tạo quiz. Vui lòng thử lại.'
+            };
+            setMessages(prev => [...prev, errMsg]);
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    // Listen for quiz requests from DocumentPanel
+    useEffect(() => {
+        const handleQuizRequest = (event: CustomEvent) => {
+            const { docId, page, difficulty, selectedText, isPageQuiz } = event.detail;
+            if (docId) {
+                generateQuiz(docId, page, difficulty, isPageQuiz ? undefined : selectedText);
+            }
+        };
+
+        window.addEventListener('quizRequest', handleQuizRequest as EventListener);
+        return () => window.removeEventListener('quizRequest', handleQuizRequest as EventListener);
+    }, [generateQuiz]);
 
     const loadSessionMessages = async (sid: string) => {
         try {
@@ -191,7 +284,10 @@ export function ChatContainer({ sessionId, onMessagesChange, onSessionCreated }:
 
                     // Handle session_id from backend
                     if (chunk.type === "session_id" && chunk.session_id) {
-                        newSessionId = chunk.session_id;
+                        // Only save for navigation if we didn't start with a session
+                        if (!sessionId) {
+                            newSessionId = chunk.session_id;
+                        }
                         // Don't navigate yet - wait for stream to complete
                         return;
                     }
@@ -334,6 +430,90 @@ export function ChatContainer({ sessionId, onMessagesChange, onSessionCreated }:
         setMessages((prev) => [...prev, emailMessage]);
     };
 
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validate file type
+        const validTypes = ['.pdf', '.txt', '.docx', '.doc'];
+        const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
+        if (!validTypes.includes(fileExt)) {
+            const errorMsg: ChatMessage = {
+                id: Date.now().toString(),
+                role: "assistant",
+                content: "⚠️ Chỉ hỗ trợ file PDF, TXT, hoặc Word (.docx).",
+            };
+            setMessages((prev) => [...prev, errorMsg]);
+            return;
+        }
+
+        setIsUploading(true);
+
+        try {
+            // If no session exists, create one first
+            let currentSessionId = sessionId;
+            if (!currentSessionId) {
+                const createRes = await fetch(`${API_BASE}/chat/sessions`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: `📄 ${file.name}` })
+                });
+
+                if (createRes.ok) {
+                    const newSession = await createRes.json();
+                    currentSessionId = newSession.id;
+                    if (onSessionCreated && currentSessionId) {
+                        onSessionCreated(currentSessionId);
+                    }
+                }
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const res = await fetch(`${API_BASE}/documents/upload`, {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!res.ok) {
+                throw new Error('Upload failed');
+            }
+
+            const doc = await res.json();
+
+            // Notify parent component
+            if (onDocumentAttached) {
+                onDocumentAttached({
+                    id: doc.id,
+                    filename: doc.filename,
+                    page_count: doc.page_count
+                });
+            }
+
+            // Add success message
+            const successMsg: ChatMessage = {
+                id: Date.now().toString(),
+                role: "assistant",
+                content: `📄 **${doc.filename}** đã được tải lên (${doc.page_count} trang). Bạn có thể hỏi về nội dung hoặc tạo quiz từ tài liệu này.`,
+            };
+            setMessages((prev) => [...prev, successMsg]);
+
+        } catch (error) {
+            const errorMsg: ChatMessage = {
+                id: Date.now().toString(),
+                role: "assistant",
+                content: "❌ Không thể tải file lên. Vui lòng thử lại.",
+            };
+            setMessages((prev) => [...prev, errorMsg]);
+        } finally {
+            setIsUploading(false);
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+        }
+    };
+
     return (
         <div className="flex flex-col h-full">
             {/* Messages area */}
@@ -363,10 +543,28 @@ export function ChatContainer({ sessionId, onMessagesChange, onSessionCreated }:
                                 disabled={isLoading}
                             />
                             <div className="flex items-center justify-between mt-2 pt-2">
-                                <StudyToggleButton
-                                    isStudyMode={isStudyMode}
-                                    onClick={() => setIsStudyMode(!isStudyMode)}
-                                />
+                                <div className="flex items-center gap-2">
+                                    <StudyToggleButton
+                                        isStudyMode={isStudyMode}
+                                        onClick={() => setIsStudyMode(!isStudyMode)}
+                                    />
+                                    {/* File attachment button */}
+                                    <label className="p-2 rounded-lg hover:bg-[var(--surface-hover)] cursor-pointer transition-colors group">
+                                        <input
+                                            ref={fileInputRef}
+                                            type="file"
+                                            accept=".pdf,.txt,.docx,.doc"
+                                            onChange={handleFileUpload}
+                                            className="hidden"
+                                            disabled={isUploading}
+                                        />
+                                        {isUploading ? (
+                                            <Loader2 className="w-5 h-5 text-[var(--text-dim)] animate-spin" />
+                                        ) : (
+                                            <Paperclip className="w-5 h-5 text-[var(--text-dim)] group-hover:text-[var(--text-muted)]" />
+                                        )}
+                                    </label>
+                                </div>
                                 <button
                                     onClick={() => sendMessage(input)}
                                     disabled={!input.trim() || isLoading}
@@ -403,14 +601,37 @@ export function ChatContainer({ sessionId, onMessagesChange, onSessionCreated }:
                     <div className="space-y-6">
                         {messages.map((message) => (
                             <div key={message.id}>
-                                <Message
-                                    message={message}
-                                    onViewEmail={(viewMessage) => sendMessage(viewMessage)}
-                                    onDirectEmailFetch={handleDirectEmailFetch}
-                                />
+                                {/* Quiz Message */}
+                                {message.quizData ? (
+                                    <div className="animate-fade-in">
+                                        {message.role === 'user' && (
+                                            <Message
+                                                message={message}
+                                                onViewEmail={(viewMessage) => sendMessage(viewMessage)}
+                                                onDirectEmailFetch={handleDirectEmailFetch}
+                                            />
+                                        )}
+                                        {message.role === 'assistant' && (
+                                            <div className="ml-0 md:ml-12 mt-2">
+                                                <QuizMessage
+                                                    title={message.quizData.title}
+                                                    difficulty={message.quizData.difficulty}
+                                                    questions={message.quizData.questions}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    /* Regular Message */
+                                    <Message
+                                        message={message}
+                                        onViewEmail={(viewMessage) => sendMessage(viewMessage)}
+                                        onDirectEmailFetch={handleDirectEmailFetch}
+                                    />
+                                )}
 
                                 {/* Thinking Process Expander */}
-                                {message.role === "assistant" && message.thinking && (
+                                {message.role === "assistant" && message.thinking && !message.quizData && (
                                     <div className="ml-12 mt-2">
                                         <button
                                             onClick={() => toggleThinking(message.id)}
@@ -488,10 +709,27 @@ export function ChatContainer({ sessionId, onMessagesChange, onSessionCreated }:
                             disabled={isLoading}
                         />
                         <div className="flex items-center justify-between mt-2 pt-2">
-                            <StudyToggleButton
-                                isStudyMode={isStudyMode}
-                                onClick={() => setIsStudyMode(!isStudyMode)}
-                            />
+                            <div className="flex items-center gap-2">
+                                <StudyToggleButton
+                                    isStudyMode={isStudyMode}
+                                    onClick={() => setIsStudyMode(!isStudyMode)}
+                                />
+                                {/* File attachment button */}
+                                <label className="p-2 rounded-lg hover:bg-[var(--surface-hover)] cursor-pointer transition-colors group">
+                                    <input
+                                        type="file"
+                                        accept=".pdf,.txt,.docx,.doc"
+                                        onChange={handleFileUpload}
+                                        className="hidden"
+                                        disabled={isUploading}
+                                    />
+                                    {isUploading ? (
+                                        <Loader2 className="w-5 h-5 text-[var(--text-dim)] animate-spin" />
+                                    ) : (
+                                        <Paperclip className="w-5 h-5 text-[var(--text-dim)] group-hover:text-[var(--text-muted)]" />
+                                    )}
+                                </label>
+                            </div>
                             <button
                                 onClick={() => sendMessage(input)}
                                 disabled={!input.trim() || isLoading}

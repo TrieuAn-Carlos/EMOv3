@@ -56,3 +56,5 @@ Thumbs.db
 emo_memory/
 *.sqlite3
 chroma.sqlite3
+EMO-backup/
+backend/data/
