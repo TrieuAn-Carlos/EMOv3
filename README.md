@@ -1,44 +1,60 @@
-# EMO - AI Personal Assistant
+# EMO - Helping students --like-- love maths.
 
 AI assistant with Gmail/Calendar integration, persistent memory, and multi-tier context.
 
 ## Tech Stack
 
-- **Frontend**: Streamlit
-- **AI**: Emo & Google Gemini 2.5 Flash
+- **Backend**: FastAPI + LangGraph
+- **Frontend**: Next.js + React
+- **AI**: Google Gemini 2.5 Flash (optionally Groq)
 - **Memory**: ChromaDB (vector DB)
 - **Integrations**: Gmail API, Google Calendar API, YouTube Transcript API, Jina Reader
 
 ## Quick Start
 
 ```bash
-source venv/bin/activate
-streamlit run main.py
-# Open http://localhost:8501
+# Backend
+cd backend
+pip install -r requirements.txt
+python main.py
+# API runs at http://localhost:8000
+
+# Frontend
+cd frontend
+npm install
+npm run dev
+# UI runs at http://localhost:3000
 ```
 
 ## Project Structure
 
 ```
-├── main.py           # Streamlit UI + chat interface
-├── agent.py          # LangGraph agent + system prompt
-├── tools.py          # All AI tools (memory, web, youtube)
-├── state.py          # Universal Context (4 Pillars)
-├── history.py        # Chat session management
-├── credential_manager.py  # Google OAuth management
-├── emo_memory/       # ChromaDB database
-└── .env              # API keys (GEMINI_API_KEY)
+├── backend/              # FastAPI backend
+│   ├── main.py          # FastAPI app entry
+│   ├── agent/           # LangGraph agent + tools
+│   ├── routers/         # API endpoints (chat, auth, email, calendar, tasks)
+│   ├── integrations/    # External APIs (Gmail, Calendar, Web)
+│   ├── memory/          # ChromaDB + 4-Pillar context
+│   ├── services/        # Business logic
+│   └── data/            # Runtime data (sessions, todos)
+│
+├── frontend/            # Next.js frontend
+│   ├── src/
+│   └── package.json
+│
+├── emo_memory/          # ChromaDB database
+└── .env                 # API keys (GEMINI_API_KEY)
 ```
 
 ## Architecture
 
 ```
-User → Streamlit UI → Gemini (with tools) → Response
-                          ↓
-              ┌───────────┴───────────┐
-              │                       │
-         ChromaDB              External APIs
-      (3-tier memory)      (Gmail, Calendar, Web)
+User → Next.js UI → FastAPI Backend → Gemini (with tools) → Response
+                           ↓
+               ┌───────────┴───────────┐
+               │                       │
+          ChromaDB              External APIs
+       (3-tier memory)      (Gmail, Calendar, Web)
 ```
 
 ### 4 Pillars of Context
