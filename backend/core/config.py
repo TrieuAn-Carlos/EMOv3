@@ -18,13 +18,13 @@ load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMMA_27B_MODEL = "gemma-3-27b-it"  # Gemma 3 27B with manual function calling
 
-# LitGPT / Lightning Studio
-LITGPT_API_KEY = os.getenv("LITGPT_API_KEY")
-LITGPT_API_BASE = os.getenv("LITGPT_API_BASE", "https://your-litgpt-instance.lightning.ai/v1")
-LITGPT_MODEL = os.getenv("LITGPT_MODEL", "iJoshNh/EmoN3")
+# Friendli.ai Dedicated Endpoints (Emo Model)
+FRIENDLI_TOKEN = os.getenv("FRIENDLI_TOKEN")
+FRIENDLI_API_BASE = os.getenv("FRIENDLI_API_BASE", "https://api.friendli.ai/dedicated/v1")
+FRIENDLI_MODEL = os.getenv("FRIENDLI_MODEL", "depg42pffii4uil")
 
-# LLM Provider Selection: "gemini" or "litgpt"
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini")
+# LLM Provider Selection: "gemini" or "friendli"
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "friendli")
 
 TEMPERATURE = 0.3  # Lower for faster, more focused responses
 

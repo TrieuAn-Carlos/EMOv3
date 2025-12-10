@@ -19,7 +19,7 @@ router = APIRouter()
 
 # Configuration
 BASE_DIR = Path(__file__).parent.parent
-CREDENTIALS_FILE = BASE_DIR.parent.parent / 'credentials.json'
+CREDENTIALS_FILE = BASE_DIR / 'credentials.json'
 GMAIL_TOKEN_FILE = BASE_DIR / 'data' / 'gmail_token.json'
 CALENDAR_TOKEN_FILE = BASE_DIR / 'data' / 'calendar_token.json'
 

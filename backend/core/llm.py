@@ -2,7 +2,7 @@
 Core LLM Module
 ===============
 Centralized factory for LLM clients.
-Supports Gemini (Google) and LitGPT (OpenAI-compatible).
+Supports Gemini (Google) and Friendli.ai (Emo model).
 """
 
 import os
@@ -13,9 +13,9 @@ from langchain_openai import ChatOpenAI
 from core.config import (
     GEMINI_API_KEY,
     GEMMA_27B_MODEL,
-    LITGPT_API_KEY,
-    LITGPT_API_BASE,
-    LITGPT_MODEL,
+    FRIENDLI_TOKEN,
+    FRIENDLI_API_BASE,
+    FRIENDLI_MODEL,
     LLM_PROVIDER,
     TEMPERATURE,
     MAX_OUTPUT_TOKENS,
@@ -47,15 +47,15 @@ def get_llm(
     temp = temperature if temperature is not None else TEMPERATURE
     tokens = max_tokens if max_tokens is not None else MAX_OUTPUT_TOKENS
     
-    if provider == "litgpt":
-        if not LITGPT_API_BASE:
-            raise ValueError("LITGPT_API_BASE not set in environment variables")
+    if provider == "friendli":
+        if not FRIENDLI_TOKEN:
+            raise ValueError("FRIENDLI_TOKEN not set in environment variables")
             
-        print(f"🔌 Initializing LitGPT Connection to {LITGPT_API_BASE}")
+        print(f"🔌 Initializing Friendli.ai Connection (Emo)")
         return ChatOpenAI(
-            model=model or LITGPT_MODEL,
-            openai_api_key=LITGPT_API_KEY or "dummy",
-            openai_api_base=LITGPT_API_BASE,
+            model=model or FRIENDLI_MODEL,
+            openai_api_key=FRIENDLI_TOKEN,
+            openai_api_base=FRIENDLI_API_BASE,
             temperature=temp,
             max_tokens=tokens,
             timeout=REQUEST_TIMEOUT,

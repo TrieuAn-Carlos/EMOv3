@@ -25,13 +25,15 @@ interface DocumentPanelProps {
     filename: string;
     pageCount: number;
     onClose: () => void;
+    pdfUrl?: string; // Optional direct URL to PDF file
 }
 
 export function DocumentPanel({
     docId,
     filename,
     pageCount,
-    onClose
+    onClose,
+    pdfUrl: propPdfUrl
 }: DocumentPanelProps) {
     const [currentPage, setCurrentPage] = useState(1);
     const [numPages, setNumPages] = useState<number>(pageCount);
@@ -49,7 +51,7 @@ export function DocumentPanel({
     const [showTooltip, setShowTooltip] = useState(false);
     const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
 
-    const pdfUrl = `${API_BASE}/documents/${docId}/file`;
+    const pdfUrl = propPdfUrl || `${API_BASE}/documents/${docId}/file`;
 
     // Auto-fit to container width
     const fitToWidth = useCallback(() => {

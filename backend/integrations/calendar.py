@@ -20,7 +20,7 @@ SCOPES = [
     'https://www.googleapis.com/auth/calendar.events'
 ]
 BASE_DIR = Path(__file__).parent.parent
-CREDENTIALS_FILE = BASE_DIR.parent.parent / 'credentials.json'
+CREDENTIALS_FILE = BASE_DIR / 'credentials.json'
 TOKEN_FILE = BASE_DIR / 'data' / 'calendar_token.json'
 
 # In-memory cache

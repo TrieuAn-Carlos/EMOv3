@@ -812,7 +812,9 @@ def update_long_term_memory(old_fact: str, new_fact: str, category: str) -> str:
 # =============================================================================
 
 def get_all_tools() -> list:
-    """Return all 22 tools."""
+    """Return all 27 tools (22 original + 5 study tools)."""
+    from agent.study_tools import get_study_tools
+    
     return [
         # Gmail (3)
         search_gmail,
@@ -844,5 +846,5 @@ def get_all_tools() -> list:
         # Quiz (2)
         create_quiz,
         generate_document_quiz,
-    ]
+    ] + get_study_tools()
 

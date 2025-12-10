@@ -43,8 +43,8 @@ def check_connection():
         print(f"Error: {e}")
         print("\nPossible solutions:")
         print("1. Check your .env file")
-        print("2. Verify API Keys and Base URLs")
-        print("3. Ensure the LLM server is running (if local/LitGPT)")
+        print("2. Verify API Keys (GEMINI_API_KEY or FRIENDLI_TOKEN)")
+        print("3. Ensure the LLM provider is correctly set (LLM_PROVIDER)")
 
 if __name__ == "__main__":
     check_connection()

@@ -19,7 +19,7 @@ from googleapiclient.discovery import build
 # Configuration
 SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
 BASE_DIR = Path(__file__).parent.parent
-CREDENTIALS_FILE = BASE_DIR.parent.parent / 'credentials.json'  # Use original credentials
+CREDENTIALS_FILE = BASE_DIR / 'credentials.json'
 TOKEN_FILE = BASE_DIR / 'data' / 'gmail_token.json'
 
 # In-memory cache (replaces st.session_state)

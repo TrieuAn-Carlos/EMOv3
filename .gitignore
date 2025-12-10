@@ -1,4 +1,5 @@
 # Environment & Secrets
+
 .env
 .env.local
 *.json.secret
@@ -51,6 +52,13 @@ wheels/
 # OS
 .DS_Store
 Thumbs.db
+
+# Frontend / Next.js
+node_modules/
+.next/
+out/
+*.map
+.cache/
 
 # Project specific
 emo_memory/

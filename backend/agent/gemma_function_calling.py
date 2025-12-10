@@ -42,15 +42,6 @@ def build_first_study_message(system_prompt: str, student_input: str) -> str:
     return f"{system_prompt}\n\n[Student]: {student_input}"
 
 
-def clean_response(response: str) -> str:
-    """Clean response by removing tags - matches Colab notebook exactly."""
-    # Remove tags exactly like Colab notebook
-    for tag in ["[Student]:", "[Teacher]:", "[Emo]:", "*"]:
-        if tag in response:
-            response = response.split(tag)[0].strip()
-    return response
-
-
 async def solve_problem_for_teaching(problem: str) -> Dict[str, str]:
     """
     Solve a problem using NORMAL Gemma 3 27B (via Gemini API).
@@ -155,27 +146,39 @@ async def get_gemma_guidance(
     
     guide_llm = get_llm(provider="gemini")
     
-    guide_prompt = f"""Bạn là cố vấn giảng dạy. Dựa vào thông tin sau, hãy đưa ra hướng dẫn ngắn gọn cho giáo viên AI.
+    guide_prompt = f"""You are a teaching advisor specializing in intuitive teaching methods. Based on the following information, provide concise guidance for the AI teacher to help the student deeply understand the problem in a natural way.
 
-[Bài toán]
+[Problem]
 {problem}
 
-[Lời giải đúng]
+[Correct Solution]
 {solution}
 
-[Lịch sử hội thoại]
-{conversation_history if conversation_history else "(Đây là tin nhắn đầu tiên)"}
+[Conversation History]
+{conversation_history if conversation_history else "(This is the first message)"}
 
-[Học sinh vừa nói]
+[Student Just Said]
 {student_message}
 
-Hãy phân tích ngắn gọn:
-1. Học sinh đang ở đâu trong quá trình giải? (bắt đầu/giữa chừng/gần xong). Hãy describe vị trí của học sinh trong quá trình giải. Học sinh giải đến đâu rồi? Còn thiếu bước nào?
-2. Học sinh đúng hay sai? Sai ở điểm nào?
-3. Có cần hint không? Nếu có thì hint gì?
-4. Bước logic tiếp theo mà học sinh cần làm là gì?
+Analyze and provide guidance focusing on:
+1. Student's current understanding: What is the student thinking? Do they grasp the core concept? Are they confused about the fundamental nature of the problem? (DO NOT just list steps, but focus on whether the student has captured the main idea)
 
-Trả lời ngắn gọn trong 3-5 dòng."""
+2. How to help the student discover on their own: Instead of giving formulas or next steps, suggest:
+   - Guiding questions that help the student realize connections themselves
+   - Real-world examples or analogies to help the student visualize the problem
+   - Ways to help the student discover patterns or principles themselves
+   - "Why" questions to help the student understand deeper reasoning
+
+3. Building intuition: Suggest ways to help the student naturally sense the problem, such as:
+   - Comparing with what the student already knows
+   - Explaining through images or concrete real-life examples
+   - Helping the student feel "why this is correct" rather than just remembering "how to do it"
+
+4. Next guidance: Instead of just saying "what's the next step", suggest how the teacher can ask questions so the student figures out the direction themselves, or provide a new perspective to help the student see the problem more clearly. However, when the student provides the final answer, signal that the problem is complete and solved. When there are follow-up questions, don't ask anything more and conclude unless the student asks to continue.
+
+AVOID: Don't just list solution steps or formulas. Focus on helping the student UNDERSTAND and FEEL the problem.
+
+Respond concisely in 4-6 lines, focusing on how to help the student understand intuitively and guide them to find the answer themselves."""
 
     print(f"📤 GUIDE PROMPT:\n{guide_prompt}")
     print("-"*70)
@@ -201,6 +204,173 @@ Trả lời ngắn gọn trong 3-5 dòng."""
         print(f"❌ GUIDE ERROR: {e}")
         print("="*70 + "\n")
         return "Tiếp tục hướng dẫn học sinh với câu hỏi gợi mở."
+
+
+# =============================================================================
+# HYBRID DUAL-MODEL ARCHITECTURE
+# Gemini 2.5 Flash (Orchestrator) → Emo (Responder)
+# =============================================================================
+
+async def orchestrate_with_gemini(
+    user_message: str,
+    context_state: EmoState,
+    memory_context: str = "",
+    conversation_history: str = ""
+) -> Dict:
+    """
+    Step 1: Gemini decides if tools are needed and executes them.
+    Returns tool results for Emo to use in response.
+    """
+    from core.llm import get_llm
+    
+    print("\n" + "="*70)
+    print("🎯🎯🎯 ORCHESTRATOR: GEMINI 2.5 FLASH 🎯🎯🎯")
+    print("="*70)
+    print(f"📥 USER: {user_message}")
+    print("-"*70)
+    
+    orchestrator = get_llm(provider="gemini")
+    tools = get_all_tools()
+    tools_map = {tool.name: tool for tool in tools}
+    
+    # Build orchestrator prompt
+    function_defs = build_function_definitions()
+    context_block = format_context_block(context_state)
+    
+    prompt = f"""You are a tool orchestrator. Decide if tools are needed for this request.
+The user may speak in Vietnamese or English - understand both languages.
+
+AVAILABLE TOOLS:
+{function_defs}
+
+CONTEXT:
+{context_block}
+
+{f"MEMORY: {memory_context}" if memory_context else ""}
+{f"HISTORY: {conversation_history}" if conversation_history else ""}
+
+USER REQUEST: {user_message}
+
+VIETNAMESE KEYWORDS FOR TOOL MATCHING:
+- "tạo buổi học", "bắt đầu học", "cho con học", "mở session" → create_study_session
+- "học xong", "hoàn thành", "xong rồi" → complete_study_session  
+- "báo cáo", "kết quả", "làm thế nào" → get_study_report
+- "dãy số", "cấp số cộng", "cấp số nhân", "chuỗi" → topic: Sequences and Series
+
+INSTRUCTIONS:
+- If a tool is needed, output ONLY: {{"name": "tool_name", "parameters": {{...}}}}
+- If NO tool is needed, output ONLY: {{"name": "none", "parameters": {{}}}}
+- Extract topic from user's message (keep original language or translate appropriately)
+- Do NOT include any other text."""
+
+    print(f"📤 ORCHESTRATOR PROMPT:\n{prompt[:500]}...")
+    
+    try:
+        loop = asyncio.get_event_loop()
+        response = await asyncio.wait_for(
+            loop.run_in_executor(None, lambda: orchestrator.invoke([HumanMessage(content=prompt)])),
+            timeout=30.0
+        )
+        response_text = response.content.strip()
+        print(f"📨 ORCHESTRATOR RESPONSE: {response_text}")
+        
+        # Parse tool call
+        tool_call = parse_function_call(response_text)
+        
+        if tool_call and tool_call.get("name") != "none":
+            func_name = tool_call["name"]
+            print(f"✅ Tool needed: {func_name}")
+            
+            if func_name in tools_map:
+                print(f"🔧 Executing tool: {func_name} with params: {tool_call.get('parameters', {})}")
+                try:
+                    result = execute_function(tool_call, tools_map)
+                    print(f"📦 Tool result: {result[:200]}...")
+                except Exception as e:
+                    print(f"❌ Tool execution ERROR: {e}")
+                    import traceback
+                    print(traceback.format_exc())
+                    result = f"Tool error: {str(e)}"
+                print(f"✅ Tool execution complete, returning to main flow...")
+                return {"tool_called": func_name, "tool_result": result, "thinking": response_text}
+            else:
+                print(f"❌ Tool '{func_name}' not found in tools_map!")
+        
+        print("💬 No tool needed")
+        return {"tool_called": None, "tool_result": None, "thinking": response_text}
+        
+    except asyncio.TimeoutError:
+        print("❌ ORCHESTRATOR TIMEOUT")
+        return {"tool_called": None, "tool_result": None, "thinking": "timeout"}
+    except Exception as e:
+        print(f"❌ ORCHESTRATOR ERROR: {e}")
+        return {"tool_called": None, "tool_result": None, "thinking": str(e)}
+
+
+async def generate_emo_response(
+    user_message: str,
+    tool_result: Optional[str] = None,
+    tool_name: Optional[str] = None,
+    context_state: EmoState = None,
+    memory_context: str = "",
+    conversation_history: str = ""
+) -> str:
+    """
+    Step 2: Emo generates natural Vietnamese response using tool results as context.
+    """
+    from core.llm import get_llm
+    
+    print("\n" + "="*70)
+    print("🤖🤖🤖 RESPONDER: EMO 🤖🤖🤖")
+    print("="*70)
+    
+    emo = get_llm()  # Default = LitGPT/Emo
+    
+    context_block = format_context_block(context_state) if context_state else ""
+    
+    prompt = f"""You are Emo, a friendly Vietnamese AI assistant.
+
+{f"CONTEXT: {context_block}" if context_block else ""}
+{f"MEMORY: {memory_context}" if memory_context else ""}
+{f"HISTORY: {conversation_history}" if conversation_history else ""}
+
+USER: {user_message}
+"""
+
+    if tool_result:
+        prompt += f"""
+TOOL USED: {tool_name}
+TOOL RESULT:
+{tool_result}
+
+Based on the tool result above, provide a helpful response to the user.
+"""
+    
+    prompt += """
+RULES:
+- Respond naturally in Vietnamese
+- Be concise and friendly
+- Use emojis sparingly 😊
+- Format with Markdown if helpful"""
+
+    print(f"📤 EMO PROMPT:\n{prompt[:400]}...")
+    
+    try:
+        loop = asyncio.get_event_loop()
+        response = await asyncio.wait_for(
+            loop.run_in_executor(None, lambda: emo.invoke([HumanMessage(content=prompt)])),
+            timeout=60.0
+        )
+        result = response.content.strip()
+        print(f"✅ EMO RESPONSE: {result[:200]}...")
+        print("="*70 + "\n")
+        return result
+    except asyncio.TimeoutError:
+        print("❌ EMO TIMEOUT")
+        return "Xin lỗi, mình đang bận. Thử lại nhé! 😅"
+    except Exception as e:
+        print(f"❌ EMO ERROR: {e}")
+        return f"Có lỗi xảy ra: {str(e)[:50]}"
 
 
 # =============================================================================
@@ -411,13 +581,10 @@ async def chat_with_gemma(
     }
 
     try:
-        # Initialize
+        # Initialize context
         global _gemma_context_state
         if _gemma_context_state is None:
             _gemma_context_state = initialize_context()
-
-        llm = get_gemma_llm()
-        tools_map = get_gemma_tools_map()
 
         # Load session history from database
         session_history_str = ""
@@ -474,6 +641,8 @@ async def chat_with_gemma(
             print(f"📚📚📚 STUDY MODE ACTIVE 📚📚📚")
             print(f"{'='*60}\n")
             try:
+                # Use Emo LLM for Socratic interactions
+                llm = get_gemma_llm()
                 # Get study_context if not already loaded
                 if study_context is None and session_id and service:
                     study_context = service.get_study_context(session_id)
@@ -504,10 +673,9 @@ async def chat_with_gemma(
                         None,
                         lambda: llm.invoke([HumanMessage(content=first_prompt)])
                     )
-                    raw_response = response.content.strip()
-                    result["response"] = clean_response(raw_response)
+                    raw_response = response.content
+                    result["response"] = raw_response
                     print(f"📚 Study mode first response (raw): {raw_response}")
-                    print(f"📚 Study mode first response (cleaned): {result['response']}")
                     
                 else:
                     # Follow-up message - continue Socratic dialogue WITH Gemma guidance
@@ -625,13 +793,12 @@ Use the guidance above to craft your response. Ask guiding questions, don't give
                         None,
                         lambda: llm.invoke([HumanMessage(content=full_prompt)])
                     )
-                    raw_response = response.content.strip()
-                    result["response"] = clean_response(raw_response)
+                    raw_response = response.content
+                    result["response"] = raw_response
                     result["prompt"] = full_prompt
                     result["guidance"] = guidance
                     
                     print(f"✅ EMO RESPONSE (raw): {raw_response}")
-                    print(f"✅ EMO RESPONSE (cleaned): {result['response']}")
                     print("="*70 + "\n")
                 
                 result["thinking"] = "Study mode: Socratic teaching"
@@ -652,76 +819,71 @@ Use the guidance above to craft your response. Ask guiding questions, don't give
                 result["response"] = "❌ Có lỗi trong chế độ học tập. Vui lòng thử lại."
                 return result
 
+        elif effective_mode == "emo_only":
+            print("\n" + "="*60)
+            print("🟡🟡🟡 EMO-ONLY MODE ACTIVE 🟡🟡🟡")
+            print("="*60 + "\n")
+
+            result["response"] = await generate_emo_response(
+                user_message=user_message,
+                tool_result=None,
+                tool_name=None,
+                context_state=_gemma_context_state,
+                memory_context=memory_context,
+                conversation_history=session_history_str
+            )
+            result["thinking"] = "Emo-only mode: bypassed Gemini orchestrator"
+
+            if session_id and db and result["response"]:
+                try:
+                    from agent.agent import save_session_message
+                    save_session_message(session_id, "user", user_message, db)
+                    save_session_message(session_id, "assistant", result["response"], db)
+
+                    # Auto-generate title after 3 messages
+                    service = SessionService(db)
+                    service.auto_generate_title_if_needed(session_id)
+                except Exception as e:
+                    print(f"Database save warning (emo_only): {e}")
+
+            return result
+
 
         # =====================================================================
-        # NORMAL MODE: Function calling
+        # NORMAL MODE: Hybrid Dual-Model Architecture
+        # Step 1: Gemini orchestrates (decides tools)
+        # Step 2: Emo responds (natural language)
         # =====================================================================
-        # Build initial prompt with session history
-        prompt = build_gemma_prompt(user_message, _gemma_context_state, memory_context, session_history_str)
-
-        # Iterative function calling
-        conversation_history = []
-        iteration = 0
-
-        while iteration < max_iterations:
-            iteration += 1
-
-            # Get LLM response
-            response = llm.invoke([HumanMessage(content=prompt)])
-            response_text = response.content.strip()
-
-            print(f"\n{'='*60}")
-            print(f"Iteration {iteration}")
-            print(f"Response: {response_text}")
-            print(f"{'='*60}\n")
-
-            conversation_history.append({
-                "iteration": iteration,
-                "prompt": prompt,
-                "response": response_text
-            })
-
-            # Check for function call
-            function_call = parse_function_call(response_text)
-
-            if function_call:
-                print(f"✅ Function call detected: {function_call['name']}")
-                print(f"   Parameters: {function_call['parameters']}")
-
-                # Execute function
-                func_name = function_call.get("name")
-                result["tools_used"].append(func_name)
-                result["thinking"] += f"[Iteration {iteration}] Called: {func_name}\n"
-
-                func_result = execute_function(function_call, tools_map)
-                print(f"📦 Function result: {func_result}")
-
-                # Build next prompt with function result - NO MORE FUNCTION CALLING
-                prompt = f"""The function has been executed and returned this result:
-
-{func_result}
-
-Now, based on this result, provide a clear and helpful response to the user's original request: "{user_message}"
-
-IMPORTANT INSTRUCTIONS:
-- DO NOT call any more functions
-- DO NOT output JSON
-- Just provide a natural, conversational response in Vietnamese
-- Use Markdown formatting if needed
-- Keep it concise and friendly
-- Add emojis if appropriate
-
-Your response:"""
-
-            else:
-                print(f"💬 No function call - treating as final response")
-                # No function call, this is the final response
-                result["response"] = response_text
-                break
-
-        # If max iterations reached without final response
-        if not result["response"]:
-            result["response"] = "Xin lỗi, tôi đang gặp khó khăn trong việc xử lý yêu cầu này. Vui lòng thử lại."
+        print("\n" + "="*70)
+        print("🔵🔵🔵 NORMAL MODE: HYBRID DUAL-MODEL 🔵🔵🔵")
+        print("="*70)
+        
+        # Step 1: Gemini orchestrates
+        print("📍 Step 1: Calling orchestrate_with_gemini...")
+        orchestration = await orchestrate_with_gemini(
+            user_message=user_message,
+            context_state=_gemma_context_state,
+            memory_context=memory_context,
+            conversation_history=session_history_str
+        )
+        
+        print(f"📍 Step 1 complete. Orchestration result: tool_called={orchestration.get('tool_called')}, tool_result_len={len(str(orchestration.get('tool_result', '')))}")
+        
+        if orchestration.get("tool_called"):
+            result["tools_used"].append(orchestration["tool_called"])
+            result["thinking"] = orchestration.get("thinking", "")
+        
+        # Step 2: Emo generates response
+        print("📍 Step 2: Calling generate_emo_response...")
+        result["response"] = await generate_emo_response(
+            user_message=user_message,
+            tool_result=orchestration.get("tool_result"),
+            tool_name=orchestration.get("tool_called"),
+            context_state=_gemma_context_state,
+            memory_context=memory_context,
+            conversation_history=session_history_str
+        )
+        print(f"📍 Step 2 complete. Response length: {len(result.get('response', ''))}")
 
         # Save to database
         if session_id and db and result["response"]:

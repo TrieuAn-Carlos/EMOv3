@@ -124,6 +124,29 @@ class QuizResult(Base):
         }
 
 
+class StudySession(Base):
+    """Model for parent-child study sessions"""
+    __tablename__ = "study_sessions"
+    
+    id = Column(String, primary_key=True)  # 6-char invite code (e.g., "ABC123")
+    status = Column(String, default="pending")  # pending, active, completed
+    created_at = Column(DateTime, default=datetime.now)
+    completed_at = Column(DateTime, nullable=True)
+    report = Column(Text, nullable=True)  # JSON: {summary, strengths, weaknesses, practice_problems}
+    chat_session_id = Column(String, ForeignKey("chat_sessions.id"), nullable=True)
+    
+    def to_dict(self):
+        """Convert to dictionary"""
+        return {
+            "id": self.id,
+            "status": self.status,
+            "created_at": self.created_at.isoformat(),
+            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "report": self.report,
+            "chat_session_id": self.chat_session_id
+        }
+
+
 def init_db():
     """Initialize database - create tables if not exist"""
     global engine, SessionLocal
@@ -144,6 +167,16 @@ def init_db():
     
     # Create all tables
     Base.metadata.create_all(bind=engine)
+    
+    # Clear pending study sessions on startup
+    db = SessionLocal()
+    try:
+        deleted = db.query(StudySession).filter(StudySession.status == "pending").delete()
+        db.commit()
+        if deleted > 0:
+            print(f"🧹 Cleared {deleted} pending study session(s)")
+    finally:
+        db.close()
     
     print(f"✅ Database initialized at: {DB_PATH}")
 
